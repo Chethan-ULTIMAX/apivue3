@@ -353,7 +353,7 @@ var sprint_summary_default = defineTool7({
 });
 
 // src/lib/mcp/index.ts
-var projectRef = "gfattgwchtieebnuklxw";
+var projectRef = "cnaikxlyuxhtwkkahlpt";
 var mcp_default = defineMcp({
   name: "sprint-companion-lovable-template",
   title: "Sprint Companion - Lovable Template",
