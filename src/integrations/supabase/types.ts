@@ -223,6 +223,38 @@ export type Database = {
           },
         ]
       }
+      profile_snapshots: {
+        Row: {
+          captured_at: string
+          id: string
+          metrics: Json
+          profile_id: string
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string
+          id?: string
+          metrics?: Json
+          profile_id: string
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          id?: string
+          metrics?: Json
+          profile_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_snapshots_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar: string | null
@@ -723,6 +755,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tracked_profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          data: Json
+          display_name: string | null
+          handle: string
+          id: string
+          last_synced_at: string | null
+          pinned: boolean
+          platform: string
+          profile_url: string | null
+          sync_error: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          data?: Json
+          display_name?: string | null
+          handle: string
+          id?: string
+          last_synced_at?: string | null
+          pinned?: boolean
+          platform: string
+          profile_url?: string | null
+          sync_error?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          data?: Json
+          display_name?: string | null
+          handle?: string
+          id?: string
+          last_synced_at?: string | null
+          pinned?: boolean
+          platform?: string
+          profile_url?: string | null
+          sync_error?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       uat_test_cases: {
         Row: {
