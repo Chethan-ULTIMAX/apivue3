@@ -1,8 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* stylelint-disable at-rule-no-unknown */
+/* css-lint: disable unknownAtRules */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* css-lint: enable unknownAtRules */
+/* stylelint-enable at-rule-no-unknown */
 
 @layer base {
   :root {
@@ -49,10 +53,13 @@
     --priority-p0: 0 72% 51%;
     --priority-p1: 25 95% 53%;
     --priority-p2: 220 10% 50%;
+
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
+
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
 
@@ -64,18 +71,25 @@
   .dark {
     --background: 228 14% 10%;
     --foreground: 220 14% 90%;
+
     --card: 228 14% 13%;
     --card-foreground: 220 14% 90%;
+
     --popover: 228 14% 15%;
     --popover-foreground: 220 14% 90%;
+
     --secondary: 228 14% 18%;
     --secondary-foreground: 220 14% 80%;
+
     --muted: 228 14% 16%;
     --muted-foreground: 220 10% 50%;
+
     --accent: 228 14% 20%;
     --accent-foreground: 220 14% 90%;
+
     --border: 228 14% 20%;
     --input: 228 14% 20%;
+
     --sidebar-background: 228 14% 8%;
     --sidebar-foreground: 220 10% 55%;
     --sidebar-accent: 228 14% 14%;
@@ -87,7 +101,12 @@
 @layer base {
   * {
     @apply border-border;
-    transition-property: background-color, color, border-color;
+
+    transition-property:
+      background-color,
+      color,
+      border-color;
+
     transition-duration: 250ms;
     transition-timing-function: ease;
   }
@@ -118,5 +137,36 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: hsl(var(--border));
     border-radius: 3px;
+  }
+}
+
+/* =========================================================
+   APIVue — Interactive Demo Shine
+   Runs once approximately every 5 seconds.
+   ========================================================= */
+
+@keyframes demo-shine {
+  0%,
+  75% {
+    transform: translateX(-130%) skewX(-20deg);
+  }
+
+  85% {
+    transform: translateX(130%) skewX(-20deg);
+  }
+
+  100% {
+    transform: translateX(130%) skewX(-20deg);
+  }
+}
+
+.animate-demo-shine {
+  animation: demo-shine 5s ease-in-out infinite;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-demo-shine {
+    animation: none;
   }
 }

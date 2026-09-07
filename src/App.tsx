@@ -1,57 +1,71 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/lib/auth-context";
-import { ThemeProvider } from "@/lib/theme-context";
-import { PermissionsProvider } from "@/hooks/use-permissions";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { DashboardLayout } from "@/components/DashboardLayout";
-import LandingPage from "./pages/LandingPage";
-import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import OAuthConsent from "./pages/OAuthConsent";
-import NotFound from "./pages/NotFound";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { DashboardLayout } from '@/components/DashboardLayout';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { AuthProvider } from '@/lib/auth-context';
+import { ThemeProvider } from '@/lib/theme-context';
+
+// APIVue feature views (protected)
+import { OverviewView } from '@/features/overview/OverviewView';
+import { ProfilesView } from '@/features/profiles/ProfilesView';
+import { ProfileDetailView } from '@/features/profiles/ProfileDetailView';
+import { ProgressView } from '@/features/progress/ProgressView';
+import { AnalyticsView } from '@/features/progress/AnalyticsView';
+import { IntegrationsView } from '@/features/integrations/IntegrationsView';
+import { AIInsightsView } from '@/features/ai-insights/AIInsightsView';
+import { GoalsView } from '@/features/goals/GoalsView';
+
+// Auth pages
+import { LoginPage } from '@/pages/LoginPage';
+import { SignupPage } from '@/pages/SignupPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { OAuthConsent } from '@/pages/OAuthConsent';
+import { NotFound } from '@/pages/NotFound';
+
+// Landing page (public)
+import { LandingPage } from '@/pages/LandingPage';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
-            <PermissionsProvider>
-              <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/oauth-consent" element={<OAuthConsent />} />
 
-                {/* Protected dashboard */}
-                <Route
-                  path="/dashboard/*"
-                  element={
-                    <ProtectedRoute>
-                      <DashboardLayout />
-                    </ProtectedRoute>
-                  }
-                />
+              {/* Protected dashboard routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/dashboard" element={<DashboardLayout />}>
+                  <Route index element={<OverviewView />} />
+                  <Route path="profiles" element={<ProfilesView />} />
+                  <Route path="profile/:id" element={<ProfileDetailView />} />
+                  <Route path="progress" element={<ProgressView />} />
+                  <Route path="analytics" element={<AnalyticsView />} />
+                  <Route path="integrations" element={<IntegrationsView />} />
+                  <Route path="ai-insights" element={<AIInsightsView />} />
+                  <Route path="goals" element={<GoalsView />} />
+                </Route>
+              </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </PermissionsProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+              {/* Redirect /dashboard to / (or handle any old dashboard references) */}
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
+              {/* Catch-all 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

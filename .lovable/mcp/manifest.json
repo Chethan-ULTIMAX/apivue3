@@ -11,9 +11,9 @@
   },
   "mcp": {
     "server": {
-      "name": "sprint-companion-lovable-template",
+      "name": "apivue",
       "version": "0.1.0",
-      "title": "Sprint Companion - Lovable Template"
+      "title": "APIVue"
     },
     "tools": [
       {

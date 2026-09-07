@@ -1,359 +1,1695 @@
-import { useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/lib/auth-context";
-import { Button } from "@/components/ui/button";
-import { AnimateOnScroll } from "@/components/AnimateOnScroll";
+import { useEffect, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { useTheme } from '@/lib/theme-context';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
-  Kanban,
-  Layers,
-  CalendarRange,
-  TrendingUp,
-  LayoutDashboard,
-  Target,
-  ListChecks,
-  BarChart3,
-  Sparkles,
-  Star,
   ArrowRight,
-  CheckCircle2,
+  BarChart3,
+  Brain,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
+  ExternalLink,
+  Github,
+  GitPullRequest,
+  GraduationCap,
+  Lock,
+  Menu,
+  Moon,
+  Network,
+  Radar,
+  Rocket,
+  Shield,
+  Sparkles,
+  Sun,
+  Target,
+  TrendingUp,
+  X,
   Zap,
-} from "lucide-react";
-import heroBg from "@/assets/hero-bg.jpg";
+  Activity,
+  FolderKanban,
+  Terminal,
+  BookOpen,
+  Trophy,
+} from 'lucide-react';
 
-const features = [
-  { icon: LayoutDashboard, title: "Kanban board", desc: "Drag-and-drop tickets across customizable columns with real-time updates." },
-  { icon: CalendarRange, title: "Sprint planning", desc: "Plan sprints with team capacity tracking and side-by-side backlog view." },
-  { icon: ListChecks, title: "Backlog grooming", desc: "Organize tickets by epic, filter by priority, and groom with ease." },
-  { icon: BarChart3, title: "Burndown charts", desc: "Track sprint progress with ideal vs. actual burndown visualization." },
-  { icon: TrendingUp, title: "Velocity tracking", desc: "Monitor team velocity across sprints to improve estimation accuracy." },
-  { icon: Sparkles, title: "AI sprint suggestions", desc: "Get AI-powered recommendations for which tickets to pull into your next sprint." },
-];
+/* =========================================================
+   SCROLL REVEAL
+========================================================= */
 
-const testimonials = [
-  { name: "Sarah Nguyen", role: "VP Engineering, Streamline", avatar: "SN", quote: "Sprint Board transformed how we plan. Velocity went up 40% in three months. The burndowns finally give us clarity." },
-  { name: "Marcus Chen", role: "CTO, DevForge", avatar: "MC", quote: "We replaced three tools with Sprint Board. The AI suggestions for planning are genuinely useful — not a gimmick." },
-  { name: "Emily Rodriguez", role: "Engineering Lead, Pixelcraft", avatar: "ER", quote: "The cleanest sprint tool I've used. My team actually enjoys grooming now. The board is incredibly fast." },
-];
-
-const steps = [
-  { icon: Layers, num: "01", title: "Shape the work", desc: "Capture epics, break them into tickets, and prioritize the backlog." },
-  { icon: CalendarRange, num: "02", title: "Plan the sprint", desc: "Pull stories into a sprint with capacity tracking and AI suggestions." },
-  { icon: TrendingUp, num: "03", title: "Ship & reflect", desc: "Move tickets across the board, watch the burndown, run the retro." },
-];
-
-const stats = [
-  { value: "40%", label: "Faster sprint planning" },
-  { value: "3×", label: "More accurate estimates" },
-  { value: "12k+", label: "Sprints shipped" },
-];
-
-export default function LandingPage() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
+const useReveal = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate("/dashboard", { replace: true });
-  }, [user, loading, navigate]);
+    const element = ref.current;
 
-  // Force light mode on public landing without persisting user preference
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      {
+        threshold: 0.12,
+      }
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return {
+    ref,
+    className: `transition-all duration-700 ease-out ${
+      visible
+        ? 'opacity-100 translate-y-0'
+        : 'opacity-0 translate-y-8'
+    }`,
+  };
+};
+
+const useCursorMotion = () => {
+  const [cursor, setCursor] = useState({ x: 0, y: 0 });
+  const [reducedMotion, setReducedMotion] = useState(false);
+
   useEffect(() => {
-    const root = document.documentElement;
-    const hadDark = root.classList.contains("dark");
-    const previousColorScheme = root.style.colorScheme;
-    root.classList.remove("dark");
-    root.classList.add("light");
-    root.style.colorScheme = "light";
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => setReducedMotion(motionQuery.matches);
+    const handleMove = (event: MouseEvent) => {
+      if (!motionQuery.matches) {
+        setCursor({ x: event.clientX, y: event.clientY });
+      }
+    };
+
+    updateMotionPreference();
+    window.addEventListener('mousemove', handleMove, { passive: true });
+    motionQuery.addEventListener('change', updateMotionPreference);
+
     return () => {
-      root.classList.remove("light");
-      if (hadDark) root.classList.add("dark");
-      root.style.colorScheme = previousColorScheme;
+      window.removeEventListener('mousemove', handleMove);
+      motionQuery.removeEventListener('change', updateMotionPreference);
     };
   }, []);
 
-  return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* Cinematic hero: dark image-backed, Apple-clean */}
-      <section className="relative min-h-[100vh] flex flex-col text-white">
-        {/* Background image with slow ken-burns */}
-        <div
-          className="absolute inset-0 bg-cover bg-center animate-[heroZoom_24s_ease-in-out_infinite_alternate]"
-          style={{ backgroundImage: `url(${heroBg})` }}
-        />
-        {/* Neutral dark overlays only — no blue/purple tints */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,black_90%)]" />
-        {/* Grain */}
-        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.5'/></svg>\")" }} />
+  return { cursor, reducedMotion };
+};
 
-        {/* Nav */}
-        <nav className="relative z-10">
-          <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2.5 animate-[fadeDown_0.7s_ease-out]">
-              <Kanban className="h-7 w-7 text-white" strokeWidth={2.25} />
-              <span className="text-lg font-semibold tracking-tight">Sprint Board</span>
-            </div>
-            <div className="flex items-center gap-5 animate-[fadeDown_0.7s_ease-out]">
-              <Link to="/login" className="text-sm font-medium text-white/70 hover:text-white transition-colors">
-                Log in
-              </Link>
-              <Link to="/signup">
-                <Button size="sm" className="bg-white text-black hover:bg-white/90 rounded-full font-medium px-5">
-                  Get started
-                </Button>
-              </Link>
-            </div>
-          </div>
+/* =========================================================
+   DATA
+========================================================= */
+
+const integrations = [
+  {
+    name: 'GitHub',
+    short: 'GH',
+    description: 'Repositories, commits, PRs',
+    icon: Github,
+  },
+  {
+    name: 'LeetCode',
+    short: 'LC',
+    description: 'Problems, streaks, difficulty',
+    icon: Code2,
+  },
+  {
+    name: 'Codeforces',
+    short: 'CF',
+    description: 'Contests, rating, problems',
+    icon: Trophy,
+  },
+  {
+    name: 'CodeChef',
+    short: 'CC',
+    description: 'Contests and problem solving',
+    icon: Code2,
+  },
+  {
+    name: 'GeeksForGeeks',
+    short: 'GFG',
+    description: 'Practice and learning',
+    icon: BookOpen,
+  },
+  {
+    name: 'AtCoder',
+    short: 'AC',
+    description: 'Competitive programming',
+    icon: Terminal,
+  },
+  {
+    name: 'Codewars',
+    short: 'CW',
+    description: 'Kata and practice',
+    icon: Zap,
+  },
+  {
+    name: 'PortSwigger',
+    short: 'PS',
+    description: 'Web security labs',
+    icon: Shield,
+  },
+];
+
+const areas = [
+  {
+    icon: Code2,
+    title: 'Development',
+    description:
+      'Understand your coding activity, repositories, commits, pull requests and development consistency.',
+    metric: 'GitHub',
+  },
+  {
+    icon: Trophy,
+    title: 'DSA & CP',
+    description:
+      'Bring competitive programming activity together and understand difficulty, topics, contests and consistency.',
+    metric: 'LeetCode · CF · CC',
+  },
+  {
+    icon: Shield,
+    title: 'Cybersecurity',
+    description:
+      'Track security labs, CTFs, learning progress and the security work you are actually doing.',
+    metric: 'Labs · CTFs',
+  },
+  {
+    icon: GraduationCap,
+    title: 'Learning',
+    description:
+      'Track courses, lessons and learning activity instead of leaving your progress scattered across platforms.',
+    metric: 'Courses · Lessons',
+  },
+  {
+    icon: FolderKanban,
+    title: 'Projects',
+    description:
+      'Keep your projects visible and connect the work you do with the progress you are making.',
+    metric: 'Build · Ship',
+  },
+  {
+    icon: Target,
+    title: 'Goals',
+    description:
+      'Turn your long-term goals into measurable progress and let APIVue help you decide what comes next.',
+    metric: 'Goals · Plans',
+  },
+];
+
+const demoSteps = [
+  {
+    title: 'One place for your entire journey',
+    description:
+      'APIVue brings activity from your connected platforms into one progress view instead of forcing you to jump between tabs.',
+    highlight: 'Overview',
+  },
+  {
+    title: 'See where your effort is going',
+    description:
+      'Compare development, DSA, cybersecurity, learning and projects to understand which areas are growing and which are being neglected.',
+    highlight: 'Progress',
+  },
+  {
+    title: 'Look beyond today',
+    description:
+      'Historical snapshots let APIVue detect trends instead of showing only your current numbers.',
+    highlight: 'History',
+  },
+  {
+    title: 'Understand your activity',
+    description:
+      'Activity streams connect things you have actually done across your platforms into a single timeline.',
+    highlight: 'Activity',
+  },
+  {
+    title: 'Let AI explain the data',
+    description:
+      'The AI layer uses APIVue analytics and history to turn raw numbers into useful observations and recommendations.',
+    highlight: 'AI Insights',
+  },
+  {
+    title: 'Know what to do next',
+    description:
+      'Instead of another dashboard that simply shows statistics, APIVue is designed to help you decide your next action.',
+    highlight: 'Next Step',
+  },
+];
+
+/* =========================================================
+   BACKGROUND
+========================================================= */
+
+const Background = () => {
+  const { cursor, reducedMotion } = useCursorMotion();
+
+  return (
+    <div className="pointer-events-none fixed inset-0 -z-20 overflow-hidden">
+      <style>{`@keyframes ambientDrift { 0%, 100% { transform: translate3d(-8%, -4%, 0) scale(1); } 50% { transform: translate3d(8%, 5%, 0) scale(1.08); } } @media (prefers-reduced-motion: reduce) { .apivue-ambient { animation: none !important; } }`}</style>
+      {/* Base */}
+      <div className="absolute inset-0 bg-[#080a0f]" />
+
+      {/* Subtle grid */}
+      <div
+        className="absolute inset-0 opacity-[0.045]"
+        style={{
+          backgroundImage: `
+            linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)
+          `,
+          backgroundSize: '48px 48px',
+        }}
+      />
+
+      {/* Top glow */}
+      <div className="absolute left-1/2 top-[-300px] h-[650px] w-[900px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[130px]" />
+
+      {/* Purple glow */}
+      <div className="absolute left-[-250px] top-[35%] h-[500px] w-[500px] rounded-full bg-indigo-600/[0.07] blur-[120px]" />
+
+      {/* Orange glow */}
+      <div className="absolute right-[-250px] top-[55%] h-[500px] w-[500px] rounded-full bg-orange-500/[0.05] blur-[120px]" />
+
+      <div
+        className="absolute h-[420px] w-[420px] rounded-full bg-violet-400/[0.045] blur-[110px] transition-transform ease-out motion-reduce:transition-none"
+        style={reducedMotion ? undefined : { transform: `translate(${cursor.x * 0.035 - 150}px, ${cursor.y * 0.035 - 150}px)`, transitionDuration: '1.8s' }}
+      />
+      <div className="apivue-ambient absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-cyan-400/[0.025] blur-[100px] animate-[ambientDrift_18s_ease-in-out_infinite]" />
+    </div>
+  );
+};
+
+const CursorGlow = () => {
+  const { cursor, reducedMotion } = useCursorMotion();
+
+  if (reducedMotion) return null;
+
+  return (
+    <>
+      {/* Main cursor aura */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-10 hidden md:block"
+        style={{
+          background: `
+            radial-gradient(
+              140px circle at ${cursor.x}px ${cursor.y}px,
+              rgba(124, 58, 237, 0.10),
+              rgba(99, 102, 241, 0.045) 30%,
+              rgba(56, 189, 248, 0.018) 48%,
+              transparent 72%
+            )
+          `,
+          transition: "background 120ms ease-out",
+        }}
+      />
+
+      {/* Soft outer diffusion */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-10 hidden md:block"
+        style={{
+          background: `
+            radial-gradient(
+              240px circle at ${cursor.x}px ${cursor.y}px,
+              rgba(139, 92, 246, 0.035),
+              transparent 68%
+            )
+          `,
+          filter: "blur(18px)",
+          transition: "background 180ms ease-out",
+        }}
+      />
+
+      {/* Small cursor core */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed hidden md:block"
+        style={{
+          left: cursor.x,
+          top: cursor.y,
+          width: "10px",
+          height: "10px",
+          transform: "translate(-50%, -50%)",
+          borderRadius: "9999px",
+          background:
+            "radial-gradient(circle, rgba(196,181,253,0.8) 0%, rgba(139,92,246,0.28) 45%, transparent 75%)",
+          filter: "blur(2px)",
+          boxShadow:
+            "0 0 14px rgba(139,92,246,0.25), 0 0 28px rgba(99,102,241,0.12)",
+          transition:
+            "left 70ms ease-out, top 70ms ease-out, opacity 200ms ease-out",
+        }}
+      />
+    </>
+  );
+};
+
+const CursorCard = ({
+  children,
+  className = '',
+  style: externalStyle,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+
+  const handleMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const element = ref.current;
+
+    if (
+      !element ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+
+    setStyle({
+      transform: `perspective(900px) translateY(-3px) rotateX(${y * -2}deg) rotateY(${x * 2}deg)`,
+    });
+  };
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMove}
+      onMouseLeave={() => setStyle({})}
+      className={`group relative transition-[transform,box-shadow,border-color,background-color] duration-500 ease-out ${className}`}
+      style={{ ...externalStyle, ...style }}
+    >
+      <div className="pointer-events-none absolute -inset-px rounded-[inherit] bg-gradient-to-br from-violet-400/0 via-violet-400/0 to-cyan-300/0 opacity-0 blur-xl transition-opacity duration-500 group-hover:from-violet-400/20 group-hover:via-violet-400/5 group-hover:to-cyan-300/15 group-hover:opacity-100" />
+
+      <div className="relative h-full">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/* =========================================================
+   LOGO
+========================================================= */
+
+const Logo = () => {
+  return (
+    <Link
+      to="/"
+      className="group flex items-center gap-2.5"
+    >
+      <div className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10">
+        <img src="/favicon.ico" alt="APIVue" className="h-7 w-7 object-contain transition-transform duration-300 group-hover:scale-110" />
+      </div>
+
+      <span className="text-xl font-bold tracking-tight">
+        API<span className="text-violet-400">Vue</span>
+      </span>
+    </Link>
+  );
+};
+
+/* =========================================================
+   NAVBAR
+========================================================= */
+
+const Navbar = () => {
+  const { theme, setTheme } = useTheme();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#080a0f]/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8">
+        <Logo />
+
+        <nav className="hidden items-center gap-8 md:flex">
+          <a
+            href="#platform"
+            className="text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            Platform
+          </a>
+
+          <a
+            href="#integrations"
+            className="text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            Integrations
+          </a>
+
+          <a
+            href="#intelligence"
+            className="text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            Intelligence
+          </a>
+
+          <a
+            href="#how-it-works"
+            className="text-sm text-zinc-400 transition-colors hover:text-white"
+          >
+            How it works
+          </a>
         </nav>
 
-        {/* Hero content — centered, Apple-style */}
-        <div className="relative z-10 flex-1 flex items-center justify-center px-6 pt-8 pb-32">
-          <div className="max-w-4xl mx-auto w-full text-center">
-            <h1
-              className="text-6xl md:text-8xl lg:text-[112px] font-semibold tracking-[-0.04em] leading-[0.95] mb-7 opacity-0 animate-[heroRise_1s_cubic-bezier(0.16,1,0.3,1)_0.1s_forwards]"
+        <div className="hidden items-center gap-2 md:flex">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              setTheme(theme === 'dark' ? 'light' : 'dark')
+            }
+            className="rounded-lg text-zinc-400 hover:bg-white/[0.06] hover:text-white"
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+
+          <Link to="/login">
+            <Button
+              variant="ghost"
+              className="text-zinc-300 hover:bg-white/[0.06] hover:text-white"
             >
-              Plan The Sprint.<br />Ship The Work.
-            </h1>
-            <p
-              className="text-lg md:text-2xl text-white/70 max-w-2xl mx-auto mb-10 leading-relaxed font-light opacity-0 animate-[heroRise_1s_cubic-bezier(0.16,1,0.3,1)_0.3s_forwards]"
-            >
-              The sprint board for teams who'd rather be shipping.
-            </p>
-            <div className="flex items-center justify-center gap-3 opacity-0 animate-[heroRise_1s_cubic-bezier(0.16,1,0.3,1)_0.5s_forwards]">
-              <Link to="/signup">
-                <Button
-                  size="lg"
-                  className="bg-white text-black hover:bg-white/90 rounded-full h-12 px-7 text-base font-medium hover:-translate-y-0.5 transition-all"
+              Sign in
+            </Button>
+          </Link>
+
+          <Link to="/signup">
+            <Button className="bg-white text-black transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:bg-zinc-200 hover:shadow-lg hover:shadow-white/10">
+              Get started
+            </Button>
+          </Link>
+        </div>
+
+        <button
+          className="md:hidden"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          {mobileOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </button>
+      </div>
+
+      {mobileOpen && (
+        <div className="border-t border-white/[0.06] bg-[#080a0f] px-5 py-5 md:hidden">
+          <div className="flex flex-col gap-4">
+            <a href="#platform" onClick={() => setMobileOpen(false)}>
+              Platform
+            </a>
+
+            <a href="#integrations" onClick={() => setMobileOpen(false)}>
+              Integrations
+            </a>
+
+            <a href="#intelligence" onClick={() => setMobileOpen(false)}>
+              Intelligence
+            </a>
+
+            <a href="#how-it-works" onClick={() => setMobileOpen(false)}>
+              How it works
+            </a>
+
+            <Link to="/login">
+              <Button variant="outline" className="w-full">
+                Sign in
+              </Button>
+            </Link>
+
+            <Link to="/signup">
+              <Button className="w-full">
+                Get started
+              </Button>
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+};
+
+/* =========================================================
+   DASHBOARD PREVIEW
+========================================================= */
+
+const DashboardPreview = () => {
+  return (
+    <div className="relative mx-auto w-full max-w-[650px]">
+      {/* Outer glow */}
+      <div className="absolute -inset-10 rounded-[32px] bg-violet-500/[0.08] blur-3xl" />
+
+      <div className="relative overflow-hidden rounded-2xl border border-white/[0.10] bg-[#0d1117] shadow-2xl shadow-black/50">
+        {/* Browser header */}
+        <div className="flex h-11 items-center justify-between border-b border-white/[0.06] bg-[#10141b] px-4">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
+          </div>
+
+          <div className="rounded-md border border-white/[0.05] bg-white/[0.03] px-20 py-1 text-[9px] text-zinc-600">
+            app.apivue.dev
+          </div>
+
+          <div className="h-4 w-4" />
+        </div>
+
+        <div className="relative p-5">
+          {/* Fake sidebar */}
+          <div className="absolute bottom-0 left-0 top-0 hidden w-40 border-r border-white/[0.05] bg-[#0b0f14] p-4 sm:block">
+            <div className="mb-7 flex items-center gap-2">
+              <div className="h-5 w-5 rounded bg-violet-500/20" />
+              <div className="h-2 w-12 rounded bg-white/10" />
+            </div>
+
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div
+                  key={item}
+                  className={`h-7 rounded-md ${
+                    item === 1
+                      ? 'bg-violet-500/10'
+                      : 'bg-white/[0.025]'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Fake dashboard */}
+          <div className="sm:ml-40">
+            <div className="mb-5">
+              <div className="h-5 w-28 rounded bg-white/10" />
+              <div className="mt-2 h-2 w-48 rounded bg-white/[0.05]" />
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {[
+                ['Development', '247'],
+                ['DSA / CP', '134'],
+                ['Security', '18'],
+                ['Learning', '36'],
+                ['Projects', '5'],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-lg border border-white/[0.05] bg-white/[0.025] p-2.5"
                 >
-                  Get started
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  className="rounded-full h-12 px-6 text-base font-medium text-white hover:bg-white/10 hover:text-white"
-                >
-                  Log in
-                </Button>
-              </Link>
+                  <div className="text-[7px] uppercase tracking-wide text-zinc-600">
+                    {label}
+                  </div>
+
+                  <div className="mt-1 text-sm font-bold text-zinc-400">
+                    {value}
+                  </div>
+
+                  <div className="mt-1 h-1 w-8 rounded bg-emerald-500/30" />
+                </div>
+              ))}
+            </div>
+
+            {/* Charts */}
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <div className="col-span-2 h-40 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+                <div className="h-2 w-24 rounded bg-white/[0.08]" />
+
+                <div className="mt-7 flex h-20 items-end gap-2">
+                  {[35, 48, 42, 62, 54, 72, 65, 82].map(
+                    (height, index) => (
+                      <div
+                        key={index}
+                        className="flex-1 rounded-t bg-violet-500/25"
+                        style={{ height: `${height}%` }}
+                      />
+                    )
+                  )}
+                </div>
+              </div>
+
+              <div className="h-40 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+                <div className="h-2 w-20 rounded bg-white/[0.08]" />
+
+                <div className="mt-6 flex justify-center">
+                  <div className="h-20 w-20 rounded-full border-[12px] border-emerald-500/25 border-r-orange-400/30 border-t-red-500/20" />
+                </div>
+              </div>
+            </div>
+
+            {/* Activity */}
+            <div className="mt-3 h-24 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
+              <div className="mb-3 h-2 w-24 rounded bg-white/[0.08]" />
+
+              <div className="space-y-2">
+                {[1, 2, 3].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-2"
+                  >
+                    <div className="h-2 w-2 rounded-full bg-violet-400/50" />
+                    <div className="h-1.5 w-40 rounded bg-white/[0.06]" />
+                    <div className="ml-auto h-1.5 w-10 rounded bg-white/[0.04]" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Lock overlay */}
+          <div className="absolute inset-0 flex items-center justify-center bg-[#080a0f]/35 backdrop-blur-[2px]">
+            <div className="mx-5 rounded-2xl border border-white/[0.10] bg-[#0d1117]/95 p-6 text-center shadow-2xl">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10">
+                <Lock className="h-5 w-5 text-violet-400" />
+              </div>
+
+              <h3 className="mt-4 text-sm font-semibold text-white">
+                Your personal dashboard
+              </h3>
+
+              <p className="mt-1 max-w-xs text-xs leading-relaxed text-zinc-500">
+                Connect your accounts to unlock your real progress,
+                history and AI insights.
+              </p>
+
+              <div className="mt-4 flex items-center justify-center gap-2 text-[10px] text-zinc-600">
+                <Shield className="h-3 w-3" />
+                Your data stays private
+              </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
 
-        {/* Stats bar at bottom of hero */}
-        <div className="relative z-10 border-t border-white/10 bg-black/40 backdrop-blur-md opacity-0 animate-[heroRise_1s_cubic-bezier(0.16,1,0.3,1)_0.7s_forwards]">
-          <div className="max-w-6xl mx-auto px-6 py-6 grid grid-cols-3 gap-6">
-            {stats.map((s) => (
-              <div key={s.label} className="text-center md:text-left">
-                <div className="text-2xl md:text-3xl font-semibold tracking-tight text-white">{s.value}</div>
-                <div className="text-[11px] md:text-xs text-white/55 uppercase tracking-wider mt-0.5">{s.label}</div>
-              </div>
-            ))}
+/* =========================================================
+   DEMO MODAL
+========================================================= */
+
+const DemoModal = ({
+  step,
+  setStep,
+  onClose,
+}: {
+  step: number;
+  setStep: (step: number) => void;
+  onClose: () => void;
+}) => {
+  const current = demoSteps[step];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+      <div className="relative w-full max-w-5xl overflow-hidden rounded-2xl border border-white/[0.10] bg-[#0c1016] shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-violet-400" />
+            <span className="text-sm font-medium">
+              APIVue interactive tour
+            </span>
           </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-zinc-500 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-      </section>
 
+        <div className="grid md:grid-cols-[1.5fr_1fr]">
+          {/* Preview */}
+          <div className="relative min-h-[360px] border-b border-white/[0.06] bg-[#080a0f] p-5 md:border-b-0 md:border-r">
+            <div className="absolute inset-0 opacity-[0.035]">
+              <div
+                className="h-full w-full"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px)',
+                  backgroundSize: '35px 35px',
+                }}
+              />
+            </div>
 
-      {/* Sprint header bar mockup transition */}
-      <section className="relative py-20 px-6 bg-background">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[400px] bg-primary/[0.04] rounded-full blur-3xl pointer-events-none" />
-        <div className="max-w-6xl mx-auto relative">
-          <AnimateOnScroll>
-            <div className="bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
-              {/* Browser chrome */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-destructive" />
-                  <div className="w-3 h-3 rounded-full bg-warning" />
-                  <div className="w-3 h-3 rounded-full bg-success" />
-                </div>
-                <div className="flex-1 mx-4">
-                  <div className="bg-background rounded-md py-1.5 px-3 text-[11px] text-muted-foreground font-mono text-center max-w-md mx-auto">
-                    app.sprintboard.io/board
-                  </div>
-                </div>
+            <div className="relative h-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#0d1117]">
+              <div className="flex h-9 items-center gap-1.5 border-b border-white/[0.06] px-3">
+                <span className="h-2 w-2 rounded-full bg-red-500/60" />
+                <span className="h-2 w-2 rounded-full bg-yellow-500/60" />
+                <span className="h-2 w-2 rounded-full bg-green-500/60" />
               </div>
-              <div className="flex items-center justify-between px-6 py-3 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-foreground">Sprint 14 · Q1 push</span>
-                  <span className="text-[10px] text-muted-foreground">Mar 30 – Apr 10</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <Target className="h-3 w-3 text-primary" />
-                    <span className="text-[10px] text-foreground font-medium">22</span>
-                    <span className="text-[10px] text-muted-foreground">/ 34 pts</span>
+
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-lg font-semibold">
+                      {current.highlight}
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-600">
+                      APIVue personal intelligence
+                    </div>
                   </div>
-                  <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full w-[65%] bg-primary rounded-full" />
+
+                  <div className="rounded-md border border-white/[0.06] px-3 py-1.5 text-[10px] text-zinc-500">
+                    Apr 7, 2026
                   </div>
                 </div>
-              </div>
-              {/* Board */}
-              <div className="p-5 overflow-x-auto bg-gradient-to-b from-card to-muted/20">
-                <div className="flex gap-4 min-w-[800px]">
+
+                <div className="mt-6 grid grid-cols-3 gap-3">
                   {[
-                    { label: "TO DO", count: 2, items: [
-                      { id: "AUTH-106", title: "Role-based access control", p: "P0", pts: "8pt", avatar: "SK", bar: "hsl(0 72% 51%)" },
-                      { id: "API-104", title: "Rate limiting middleware", p: "P1", pts: "3pt", avatar: "TB", bar: "hsl(25 95% 53%)" },
-                    ]},
-                    { label: "IN PROGRESS", count: 3, items: [
-                      { id: "AUTH-105", title: "OAuth Google sign-in", p: "P0", pts: "5pt", avatar: "AC", bar: "hsl(0 72% 51%)", sub: "2/4" },
-                      { id: "DASH-105", title: "Dark mode toggle", p: "P2", pts: "3pt", avatar: "MG", bar: "hsl(220 10% 50%)" },
-                      { id: "API-105", title: "Fix 500 on user delete", p: "P0", pts: "2pt", avatar: "MG", bar: "hsl(0 72% 51%)" },
-                    ]},
-                    { label: "IN REVIEW", count: 1, items: [
-                      { id: "DASH-104", title: "Analytics charts", p: "P1", pts: "5pt", avatar: "JW", bar: "hsl(25 95% 53%)", sub: "3/4" },
-                    ]},
-                    { label: "DONE", count: 1, items: [
-                      { id: "AUTH-107", title: "Fix token refresh loop", p: "P0", pts: "3pt", avatar: "AC", bar: "hsl(0 72% 51%)" },
-                    ]},
-                  ].map((col) => (
-                    <div key={col.label} className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{col.label}</span>
-                        <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">{col.count}</span>
+                    ['Development', '247'],
+                    ['DSA / CP', '134'],
+                    ['Security', '18'],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded-lg border border-white/[0.06] bg-white/[0.025] p-3"
+                    >
+                      <div className="text-[9px] text-zinc-600">
+                        {label}
                       </div>
-                      <div className="space-y-2">
-                        {col.items.map((it) => (
-                          <div key={it.id} className="relative bg-background border border-border rounded-lg p-3 pl-4 hover:border-primary/40 hover:shadow-md transition-all">
-                            <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg" style={{ backgroundColor: it.bar }} />
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[10px] font-mono text-muted-foreground">{it.id}</span>
-                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: `color-mix(in srgb, ${it.bar} 15%, transparent)`, color: it.bar }}>{it.p}</span>
-                            </div>
-                            <p className="text-xs text-foreground font-medium mb-2">{it.title}</p>
-                            {it.sub && (
-                              <div className="mb-2 h-1 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full bg-primary rounded-full" style={{ width: it.sub === "2/4" ? "50%" : "75%" }} />
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{it.pts}</span>
-                              <div className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[8px] font-semibold flex items-center justify-center">{it.avatar}</div>
-                            </div>
-                          </div>
-                        ))}
+                      <div className="mt-1 text-xl font-bold">
+                        {value}
+                      </div>
+                      <div className="mt-1 text-[9px] text-emerald-500">
+                        +8.4%
                       </div>
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-4 h-36 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                  <div className="text-[10px] text-zinc-500">
+                    Activity over time
+                  </div>
+
+                  <div className="mt-5 flex h-20 items-end gap-2">
+                    {[30, 45, 38, 56, 48, 70, 62, 78, 72].map(
+                      (height, i) => (
+                        <div
+                          key={i}
+                          className={`flex-1 rounded-t transition-all duration-500 ${
+                            i === step + 1
+                              ? 'bg-violet-400/70'
+                              : 'bg-violet-500/15'
+                          }`}
+                          style={{ height: `${height}%` }}
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="h-16 rounded-lg border border-white/[0.06] bg-white/[0.02]" />
+                  <div className="h-16 rounded-lg border border-white/[0.06] bg-white/[0.02]" />
+                </div>
               </div>
             </div>
-          </AnimateOnScroll>
-        </div>
-      </section>
+          </div>
 
-      {/* How it works */}
-      <section className="py-24 px-6 bg-muted/40 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, hsl(228 14% 10%) 1px, transparent 0)", backgroundSize: "32px 32px" }} />
-        <div className="max-w-5xl mx-auto relative">
-          <AnimateOnScroll>
-            <div className="text-center mb-16">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">How it works</span>
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mt-3 mb-4">From idea to shipped in three moves.</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto text-lg">A workflow your team actually wants to follow.</p>
-            </div>
-          </AnimateOnScroll>
-          <div className="grid md:grid-cols-3 gap-6">
-            {steps.map((step, i) => (
-              <AnimateOnScroll key={step.num} delay={i * 120}>
-                <div className="group relative bg-background border border-border rounded-2xl p-7 hover:border-primary/40 hover:-translate-y-1 transition-all duration-300 hover:shadow-xl hover:shadow-primary/5 h-full">
-                  <div className="mb-6">
-                    <span className="text-3xl font-bold text-muted-foreground/30 tabular-nums">{step.num}</span>
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+          {/* Explanation */}
+          <div className="flex flex-col justify-between p-6 md:p-8">
+            <div>
+              <div className="text-xs font-medium text-violet-400">
+                STEP {step + 1} / {demoSteps.length}
+              </div>
+
+              <h2 className="mt-4 text-2xl font-bold tracking-tight">
+                {current.title}
+              </h2>
+
+              <p className="mt-4 text-sm leading-7 text-zinc-400">
+                {current.description}
+              </p>
+
+              <div className="mt-7 rounded-xl border border-violet-500/15 bg-violet-500/[0.05] p-4">
+                <div className="flex items-center gap-2 text-xs font-medium text-violet-300">
+                  <Radar className="h-4 w-4" />
+                  What APIVue does
                 </div>
-              </AnimateOnScroll>
-            ))}
+
+                <p className="mt-2 text-xs leading-6 text-zinc-500">
+                  It turns activity from your connected sources into
+                  structured data, historical analytics and personalized
+                  guidance.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              {/* Progress */}
+              <div className="mb-5 flex gap-1.5">
+                {demoSteps.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setStep(index)}
+                    className={`h-1.5 flex-1 rounded-full transition ${
+                      index === step
+                        ? 'bg-violet-400'
+                        : 'bg-white/[0.08]'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setStep(Math.max(0, step - 1))
+                  }
+                  disabled={step === 0}
+                  className="gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </Button>
+
+                {step === demoSteps.length - 1 ? (
+                  <Link to="/signup">
+                    <Button className="gap-2 transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-violet-500/10">
+                      Start with APIVue
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button
+                    onClick={() =>
+                      setStep(
+                        Math.min(
+                          demoSteps.length - 1,
+                          step + 1
+                        )
+                      )
+                    }
+                    className="gap-2 transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-violet-500/10"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
+    </div>
+  );
+};
 
-      {/* Features */}
-      <section className="py-24 px-6 relative overflow-hidden">
-        <div className="absolute top-1/3 left-0 w-96 h-96 bg-primary/[0.04] rounded-full blur-3xl -z-10" />
-        <div className="absolute bottom-0 right-0 w-80 h-80 bg-epic-auth/[0.04] rounded-full blur-3xl -z-10" />
-        <div className="max-w-6xl mx-auto">
-          <AnimateOnScroll>
-            <div className="text-center mb-16">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Features</span>
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tight mt-3 mb-4">Everything you need. Nothing you don't.</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto text-lg">Designed for teams who'd rather be shipping than configuring.</p>
-            </div>
-          </AnimateOnScroll>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((f, i) => (
-              <AnimateOnScroll key={f.title} delay={i * 80}>
-                <div className="group relative border border-border rounded-2xl p-6 hover:border-primary/40 transition-all duration-300 hover:-translate-y-1 bg-card hover:shadow-xl hover:shadow-primary/5 h-full">
-                  <h3 className="font-semibold mb-2 text-base">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
-                </div>
-              </AnimateOnScroll>
-            ))}
-          </div>
-        </div>
-      </section>
+/* =========================================================
+   HERO
+========================================================= */
 
+const Hero = ({
+  onDemo,
+}: {
+  onDemo: () => void;
+}) => {
+  const reveal = useReveal();
 
-      {/* Final CTA - cinematic dark, Apple-clean */}
-      <section className="relative py-32 px-6 overflow-hidden text-white">
-        <div className="absolute inset-0 bg-black" />
+  return (
+    <section className="relative overflow-hidden">
+      <div className="mx-auto max-w-7xl px-5 pb-24 pt-20 lg:px-8 lg:pb-32 lg:pt-28">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-25"
-          style={{ backgroundImage: `url(${heroBg})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/85 to-black" />
-        <div className="max-w-3xl mx-auto text-center relative">
-          <AnimateOnScroll>
-            <h2 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-[-0.03em] mb-5 leading-[1.02]">
-              Your best sprint <br className="hidden md:block" />starts today.
-            </h2>
-            <p className="text-white/65 mb-10 max-w-lg mx-auto text-lg font-light">
-              Set up your workspace and bring your team in.
+          ref={reveal.ref}
+          className={`${reveal.className} grid items-center gap-14 lg:grid-cols-[0.9fr_1.1fr]`}
+        >
+          {/* ==================== LEFT: HERO CONTENT ==================== */}
+          <div>
+            <Badge
+              variant="outline"
+              className="border-violet-500/20 bg-violet-500/[0.06] px-3 py-1 text-violet-300"
+            >
+              <span className="mr-2 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+              Personal Progress Intelligence
+            </Badge>
+
+            <h1 className="mt-7 max-w-3xl text-5xl font-bold leading-[1.05] tracking-[-0.04em] text-white sm:text-6xl lg:text-[68px]">
+              Your work.
+              <br />
+
+              <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-orange-300 bg-clip-text text-transparent">
+                One intelligence layer.
+              </span>
+            </h1>
+
+            <p className="mt-7 max-w-xl text-base leading-8 text-zinc-400 sm:text-lg">
+              APIVue brings your development, DSA, cybersecurity,
+              learning and project activity together — then turns
+              your history into insights about where you are and
+              what you should do next.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+
+            {/* ==================== ACTION BUTTONS ==================== */}
+            <div className="mt-9 flex flex-wrap gap-3">
+              {/* Start Tracking */}
               <Link to="/signup">
                 <Button
                   size="lg"
-                  className="bg-white text-black hover:bg-white/90 rounded-full h-12 px-8 text-base font-medium hover:-translate-y-0.5 transition-all"
+                  className="
+                    h-12 gap-2
+                    bg-white
+                    px-6
+                    text-black
+                    transition-[transform,box-shadow]
+                    duration-300
+                    hover:scale-[1.02]
+                    hover:bg-zinc-200
+                    hover:shadow-lg
+                    hover:shadow-white/10
+                  "
                 >
-                  Get started
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  Start tracking
+
+                  <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </Button>
               </Link>
+
+              {/* Interactive Demo */}
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={onDemo}
+                className="
+                  group
+                  relative
+                  h-12
+                  gap-2
+                  overflow-hidden
+                  border-white/[0.10]
+                  bg-white/[0.02]
+                  px-6
+                  transition-[transform,box-shadow,background-color]
+                  duration-300
+                  hover:scale-[1.02]
+                  hover:bg-white/[0.06]
+                  hover:shadow-lg
+                  hover:shadow-violet-500/10
+                "
+              >
+                {/* Periodic diagonal shine */}
+                <span
+                  aria-hidden="true"
+                  className="
+                    pointer-events-none
+                    absolute
+                    inset-0
+                    -translate-x-[130%]
+                    skew-x-[-20deg]
+                    bg-gradient-to-r
+                    from-transparent
+                    via-white/30
+                    to-transparent
+                    animate-demo-shine
+                  "
+                />
+
+                {/* Soft hover glow */}
+                <span
+                  aria-hidden="true"
+                  className="
+                    pointer-events-none
+                    absolute
+                    inset-0
+                    rounded-[inherit]
+                    opacity-0
+                    shadow-[inset_0_0_18px_rgba(139,92,246,0.12)]
+                    transition-opacity
+                    duration-300
+                    group-hover:opacity-100
+                  "
+                />
+
+                {/* Icon */}
+                <Sparkles
+                  className="
+                    relative
+                    z-10
+                    h-4
+                    w-4
+                    text-violet-400
+                    transition-transform
+                    duration-300
+                    group-hover:rotate-12
+                    group-hover:scale-110
+                  "
+                />
+
+                {/* Text */}
+                <span className="relative z-10">
+                  See interactive demo
+                </span>
+              </Button>
+            </div>
+
+            {/* ==================== TRUST POINTS ==================== */}
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs text-zinc-500">
+              <span className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                Free beta
+              </span>
+
+              <span className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                Open source
+              </span>
+
+              <span className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                Privacy first
+              </span>
+            </div>
+          </div>
+
+          {/* ==================== RIGHT: DASHBOARD PREVIEW ==================== */}
+          <div>
+            <CursorCard className="rounded-[1rem]">
+              <DashboardPreview />
+            </CursorCard>
+
+            <div className="mt-5 flex items-center justify-center gap-2 text-xs text-zinc-600">
+              <Lock className="h-3 w-3" />
+              Dashboard data is only available after authentication
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================== BOTTOM FADE ==================== */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#080a0f] to-transparent" />
+    </section>
+  );
+};
+
+/* =========================================================
+   INTEGRATIONS
+========================================================= */
+
+const Integrations = () => {
+  const reveal = useReveal();
+
+  return (
+    <section
+      id="integrations"
+      className="border-y border-white/[0.06] bg-white/[0.015]"
+    >
+      <div
+        ref={reveal.ref}
+        className={`${reveal.className} mx-auto max-w-7xl px-5 py-20 lg:px-8`}
+      >
+        <div className="text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
+            Connect your ecosystem
+          </p>
+
+          <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+            Your tools already contain the data.
+          </h2>
+
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-zinc-500">
+            APIVue is designed to bring the activity you already
+            create across your favourite platforms into one place.
+          </p>
+        </div>
+
+        <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          {integrations.map((item, index) => {
+            const Icon = item.icon;
+
+            return (
+              <CursorCard
+                key={item.name}
+                className="rounded-xl border border-white/[0.06] bg-[#0d1117]/70 p-4 text-center shadow-lg shadow-black/10 backdrop-blur-md hover:border-violet-300/25 hover:bg-violet-500/[0.06] hover:shadow-violet-500/10"
+                style={{
+                  transitionDelay: `${index * 40}ms`,
+                }}
+              >
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025]">
+                  <Icon className="h-5 w-5 text-zinc-500 transition-colors group-hover:text-violet-400" />
+                </div>
+
+                <div className="mt-3 text-xs font-medium text-zinc-300">
+                  {item.name}
+                </div>
+
+                <div className="mt-1 hidden text-[9px] leading-4 text-zinc-600 lg:block">
+                  {item.description}
+                </div>
+              </CursorCard>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =========================================================
+   PLATFORM AREAS
+========================================================= */
+
+const Platform = () => {
+  const reveal = useReveal();
+
+  return (
+    <section id="platform">
+      <div
+        ref={reveal.ref}
+        className={`${reveal.className} mx-auto max-w-7xl px-5 py-24 lg:px-8`}
+      >
+        <div className="grid gap-14 lg:grid-cols-[0.75fr_1.25fr]">
+          <div>
+            <Badge
+              variant="outline"
+              className="border-violet-500/20 text-violet-400"
+            >
+              The platform
+            </Badge>
+
+            <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
+              More than another
+              <br />
+              statistics dashboard.
+            </h2>
+
+            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-500">
+              Most platforms show you what happened on that
+              platform. APIVue is designed to understand the
+              bigger picture.
+            </p>
+
+            <div className="mt-8 rounded-xl border border-violet-500/10 bg-violet-500/[0.03] p-5">
+              <div className="flex items-start gap-3">
+                <Network className="mt-0.5 h-5 w-5 shrink-0 text-violet-400" />
+
+                <div>
+                  <div className="text-sm font-semibold">
+                    Data → History → Intelligence
+                  </div>
+
+                  <p className="mt-2 text-xs leading-6 text-zinc-500">
+                    APIVue is built around your activity over
+                    time, not just today's snapshot.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {areas.map((area) => {
+              const Icon = area.icon;
+
+              return (
+                <CursorCard
+                  key={area.title}
+                  className="rounded-2xl border border-white/[0.06] bg-[#0d1117]/70 p-6 shadow-xl shadow-black/10 backdrop-blur-md hover:border-violet-300/25 hover:bg-violet-500/[0.05] hover:shadow-violet-500/10"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04]">
+                      <Icon className="h-5 w-5 text-violet-400" />
+                    </div>
+
+                    <span className="rounded-md bg-white/[0.03] px-2 py-1 text-[9px] text-zinc-600">
+                      {area.metric}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-5 text-base font-semibold">
+                    {area.title}
+                  </h3>
+
+                  <p className="mt-2 text-xs leading-6 text-zinc-500">
+                    {area.description}
+                  </p>
+                </CursorCard>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =========================================================
+   INTELLIGENCE
+========================================================= */
+
+const Intelligence = () => {
+  const reveal = useReveal();
+
+  const items = [
+    {
+      icon: TrendingUp,
+      number: '01',
+      title: 'Historical intelligence',
+      description:
+        'A single number tells you where you are. History tells you whether you are actually improving.',
+    },
+    {
+      icon: Radar,
+      number: '02',
+      title: 'Cross-domain patterns',
+      description:
+        'See relationships between areas instead of treating every activity source as an isolated statistic.',
+    },
+    {
+      icon: Brain,
+      number: '03',
+      title: 'AI guidance',
+      description:
+        'Give AI structured APIVue analytics so it can explain your progress and suggest useful next actions.',
+    },
+  ];
+
+  return (
+    <section
+      id="intelligence"
+      className="border-y border-white/[0.06] bg-[#0b0e13]"
+    >
+      <div
+        ref={reveal.ref}
+        className={`${reveal.className} mx-auto max-w-7xl px-5 py-24 lg:px-8`}
+      >
+        <div className="mx-auto max-w-2xl text-center">
+          <Badge
+            variant="outline"
+            className="border-violet-500/20 text-violet-400"
+          >
+            Intelligence layer
+          </Badge>
+
+          <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
+            From activity to understanding.
+          </h2>
+
+          <p className="mt-4 text-sm leading-7 text-zinc-500">
+            APIVue isn't meant to be a prettier collection of
+            statistics. The goal is to understand your trajectory.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-4 md:grid-cols-3">
+          {items.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <div
+                key={item.number}
+                className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d1117] p-7"
+              >
+                <div className="absolute right-5 top-4 text-5xl font-bold text-white/[0.025]">
+                  {item.number}
+                </div>
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10">
+                  <Icon className="h-5 w-5 text-violet-400" />
+                </div>
+
+                <h3 className="mt-6 text-lg font-semibold">
+                  {item.title}
+                </h3>
+
+                <p className="mt-3 text-sm leading-7 text-zinc-500">
+                  {item.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =========================================================
+   HOW IT WORKS
+========================================================= */
+
+const HowItWorks = () => {
+  const reveal = useReveal();
+
+  const steps = [
+    {
+      number: '01',
+      title: 'Connect',
+      description:
+        'Connect the platforms where your work and learning already happen.',
+      icon: Network,
+    },
+    {
+      number: '02',
+      title: 'Collect',
+      description:
+        'APIVue normalizes your activity into a consistent progress model.',
+      icon: BarChart3,
+    },
+    {
+      number: '03',
+      title: 'Understand',
+      description:
+        'Historical analytics reveal trends, consistency and changes.',
+      icon: TrendingUp,
+    },
+    {
+      number: '04',
+      title: 'Act',
+      description:
+        'Use insights and AI guidance to decide what deserves your attention next.',
+      icon: Rocket,
+    },
+  ];
+
+  return (
+    <section id="how-it-works">
+      <div
+        ref={reveal.ref}
+        className={`${reveal.className} mx-auto max-w-7xl px-5 py-24 lg:px-8`}
+      >
+        <div className="grid gap-12 lg:grid-cols-[0.7fr_1.3fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-600">
+              How it works
+            </p>
+
+            <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
+              Simple input.
+              <br />
+              Useful output.
+            </h2>
+
+            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-500">
+              You keep doing the work. APIVue handles the difficult
+              part of connecting the dots.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {steps.map((step) => {
+              const Icon = step.icon;
+
+              return (
+                <CursorCard
+                  key={step.number}
+                  className="rounded-2xl border border-white/[0.06] bg-[#0d1117]/80 p-6 shadow-xl shadow-black/10 backdrop-blur-md hover:border-violet-300/25 hover:bg-violet-500/[0.04] hover:shadow-violet-500/10"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-violet-400">
+                      {step.number}
+                    </span>
+
+                    <Icon className="h-4 w-4 text-zinc-700 transition-colors group-hover:text-violet-400" />
+                  </div>
+
+                  <h3 className="mt-8 font-semibold">
+                    {step.title}
+                  </h3>
+
+                  <p className="mt-2 text-xs leading-6 text-zinc-500">
+                    {step.description}
+                  </p>
+                </CursorCard>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =========================================================
+   CTA
+========================================================= */
+
+const CTA = () => {
+  const reveal = useReveal();
+
+  return (
+    <section>
+      <div
+        ref={reveal.ref}
+        className={`${reveal.className} mx-auto max-w-7xl px-5 py-20 lg:px-8`}
+      >
+        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0d1117] px-6 py-16 text-center sm:px-12">
+          <div className="absolute left-1/2 top-0 h-56 w-96 -translate-x-1/2 rounded-full bg-violet-500/[0.10] blur-[100px]" />
+
+          <div className="relative">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/10">
+              <Zap className="h-5 w-5 text-violet-400" />
+            </div>
+
+            <h2 className="mx-auto mt-6 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
+              Stop collecting activity.
+              <br />
+              Start understanding it.
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-zinc-500">
+              Build a complete picture of your technical and
+              personal progress with APIVue.
+            </p>
+
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link to="/signup">
+                <Button
+                  size="lg"
+                  className="gap-2 bg-white px-6 text-black transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:bg-zinc-200 hover:shadow-lg hover:shadow-white/10"
+                >
+                  Get started free
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+
               <Link to="/login">
                 <Button
                   size="lg"
-                  variant="ghost"
-                  className="rounded-full h-12 px-6 text-base font-medium text-white hover:bg-white/10 hover:text-white"
+                  variant="outline"
+                  className="border-white/[0.10] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-violet-500/10"
                 >
-                  Log in
+                  Sign in
                 </Button>
               </Link>
             </div>
-          </AnimateOnScroll>
-        </div>
-      </section>
-
-
-      {/* Footer */}
-      <footer className="border-t border-border py-10 px-6 bg-background">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <Kanban className="h-6 w-6 text-primary" />
-            <span className="text-sm font-semibold">Sprint Board</span>
-            <span className="text-xs text-muted-foreground ml-2">Agile done right.</span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="/login" className="hover:text-foreground">Log in</Link>
-            <Link to="/signup" className="hover:text-foreground">Get started</Link>
-          </div>
-          <p className="text-xs text-muted-foreground">© 2026 Sprint Board. All rights reserved.</p>
         </div>
-      </footer>
+      </div>
+    </section>
+  );
+};
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+const Footer = () => {
+  return (
+    <footer className="border-t border-white/[0.06]">
+      <div className="mx-auto max-w-7xl px-5 py-12 lg:px-8">
+        <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+          <div>
+            <Logo />
+
+            <p className="mt-4 max-w-sm text-xs leading-6 text-zinc-600">
+              APIVue is a personal progress intelligence platform
+              designed to turn scattered activity into useful
+              understanding.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Product
+            </h4>
+
+            <div className="mt-4 space-y-3 text-xs text-zinc-600">
+              <a
+                href="#platform"
+                className="block hover:text-zinc-300"
+              >
+                Platform
+              </a>
+
+              <a
+                href="#integrations"
+                className="block hover:text-zinc-300"
+              >
+                Integrations
+              </a>
+
+              <a
+                href="#intelligence"
+                className="block hover:text-zinc-300"
+              >
+                Intelligence
+              </a>
+
+              <a
+                href="#how-it-works"
+                className="block hover:text-zinc-300"
+              >
+                How it works
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Account
+            </h4>
+
+            <div className="mt-4 space-y-3 text-xs text-zinc-600">
+              <Link
+                to="/login"
+                className="block hover:text-zinc-300"
+              >
+                Sign in
+              </Link>
+
+              <Link
+                to="/signup"
+                className="block hover:text-zinc-300"
+              >
+                Create account
+              </Link>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Principles
+            </h4>
+
+            <div className="mt-4 space-y-3 text-xs text-zinc-600">
+              <div>Open source</div>
+              <div>Privacy first</div>
+              <div>Data driven</div>
+              <div>AI assisted</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.06] pt-6 text-xs text-zinc-700 sm:flex-row">
+          <span>© 2026 APIVue. Built for progress.</span>
+
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <Shield className="h-3 w-3" />
+              Privacy first
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <Github className="h-3 w-3" />
+              Open source
+            </span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+/* =========================================================
+   MAIN LANDING PAGE
+========================================================= */
+
+export const LandingPage = () => {
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoStep, setDemoStep] = useState(0);
+
+  const openDemo = () => {
+    setDemoStep(0);
+    setDemoOpen(true);
+  };
+
+  useEffect(() => {
+    if (!demoOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setDemoOpen(false);
+      }
+
+      if (event.key === 'ArrowRight') {
+        setDemoStep((current) =>
+          Math.min(demoSteps.length - 1, current + 1)
+        );
+      }
+
+      if (event.key === 'ArrowLeft') {
+        setDemoStep((current) =>
+          Math.max(0, current - 1)
+        );
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [demoOpen]);
+
+  return (
+    <div className="min-h-screen bg-[#080a0f] text-white">
+      <Background />
+      <CursorGlow />
+
+      <Navbar />
+
+      <main>
+        <Hero onDemo={openDemo} />
+
+        <Integrations />
+
+        <Platform />
+
+        <Intelligence />
+
+        <HowItWorks />
+
+        <CTA />
+      </main>
+
+      <Footer />
+
+      {demoOpen && (
+        <DemoModal
+          step={demoStep}
+          setStep={setDemoStep}
+          onClose={() => setDemoOpen(false)}
+        />
+      )}
     </div>
   );
+};
+
+export default LandingPage;
+
+function setStyle(arg0: { transform: string; boxShadow: string; }) {
+  throw new Error('Function not implemented.');
 }

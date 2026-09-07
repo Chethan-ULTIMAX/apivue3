@@ -1,21 +1,8 @@
-import { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "@/lib/auth-context";
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '@/lib/auth-context';
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
+export const ProtectedRoute = () => {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-}
+  if (loading) return <div>Loading...</div>;
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
+};

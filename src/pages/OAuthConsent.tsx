@@ -1,113 +1,67 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/lib/auth-context";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Kanban, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
-type AuthClient = { name?: string };
-type AuthDetails = { client?: AuthClient; redirect_url?: string; redirect_to?: string };
-type OAuthApi = {
-  getAuthorizationDetails: (id: string) => Promise<{ data: AuthDetails | null; error: { message: string } | null }>;
-  approveAuthorization: (id: string) => Promise<{ data: AuthDetails | null; error: { message: string } | null }>;
-  denyAuthorization: (id: string) => Promise<{ data: AuthDetails | null; error: { message: string } | null }>;
-};
-
-const oauth = () => (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
-
-export default function OAuthConsent() {
-  const [params] = useSearchParams();
-  const authorizationId = params.get("authorization_id") ?? "";
-  const [details, setDetails] = useState<AuthDetails | null>(null);
+export const OAuthConsent = () => {
+  const [searchParams] = useSearchParams();
+  const clientName = searchParams.get("client_name") || "an application";
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { signInWithGoogle } = useAuth();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!authorizationId) {
-        setError("Missing authorization_id");
-        return;
-      }
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) {
-        const next = window.location.pathname + window.location.search;
-        window.location.href = "/login?next=" + encodeURIComponent(next);
-        return;
-      }
-      const { data, error: err } = await oauth().getAuthorizationDetails(authorizationId);
-      if (!active) return;
-      if (err) {
-        setError(err.message);
-        return;
-      }
-      const immediate = data?.redirect_url ?? data?.redirect_to;
-      if (immediate && !data?.client) {
-        window.location.href = immediate;
-        return;
-      }
-      setDetails(data);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [authorizationId]);
-
-  async function decide(approve: boolean) {
-    setBusy(true);
-    const { data, error: err } = approve
-      ? await oauth().approveAuthorization(authorizationId)
-      : await oauth().denyAuthorization(authorizationId);
-    if (err) {
-      setBusy(false);
-      setError(err.message);
-      return;
+  const handleConsent = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+      // Redirect handled by OAuth flow
+    } catch (err: any) {
+      setError(err.message || "Failed to start OAuth flow");
+      setLoading(false);
     }
-    const target = data?.redirect_url ?? data?.redirect_to;
-    if (!target) {
-      setBusy(false);
-      setError("No redirect returned by the authorization server.");
-      return;
-    }
-    window.location.href = target;
-  }
+  };
 
-  const clientName = details?.client?.name ?? "an app";
+  const handleCancel = () => {
+    navigate("/login");
+  };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
-        <div className="flex items-center gap-2 mb-6">
-          <Kanban className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium">Sprint board</span>
-        </div>
-
-        {error ? (
-          <>
-            <h1 className="text-lg font-semibold mb-2">Could not load this request</h1>
-            <p className="text-sm text-muted-foreground">{error}</p>
-          </>
-        ) : !details ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-          </div>
-        ) : (
-          <>
-            <h1 className="text-lg font-semibold mb-2">Connect {clientName} to your account</h1>
-            <p className="text-sm text-muted-foreground mb-6">
-              {clientName} will be able to read and update your epics, sprints and tickets as you.
-            </p>
-            <div className="flex gap-2">
-              <Button disabled={busy} onClick={() => decide(true)} className="flex-1">
-                {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                Approve
-              </Button>
-              <Button variant="ghost" disabled={busy} onClick={() => decide(false)} className="flex-1">
-                Deny
-              </Button>
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="flex justify-center mb-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <img src="/favicon.ico" alt="APIVue" className="h-9 w-9 object-contain" />
             </div>
-          </>
-        )}
-      </div>
-    </main>
+          </div>
+          <CardTitle className="text-xl">Authorization request</CardTitle>
+          <CardDescription>
+            {clientName} is requesting access to your APIVue account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <p className="text-sm text-muted-foreground">
+            This will allow {clientName} to view your public profile data and activity.
+          </p>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={handleCancel}>Cancel</Button>
+          <Button onClick={handleConsent} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Authorize
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   );
-}
+};
