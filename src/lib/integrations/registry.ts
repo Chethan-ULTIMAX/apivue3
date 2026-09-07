@@ -66,6 +66,38 @@ export interface ProfileSnapshot {
   metrics: Record<string, number>;
 }
 
+/** Progress areas APIVue tracks. New areas can be added without touching views. */
+export type CategoryId =
+  | "development"
+  | "dsa"
+  | "security"
+  | "learning"
+  | "projects"
+  | "open_source"
+  | "community"
+  | "goals";
+
+export interface CategoryMeta {
+  id: CategoryId;
+  label: string;
+  description: string;
+}
+
+export const categories: CategoryMeta[] = [
+  { id: "development", label: "Development", description: "Day-to-day coding output and shipped work." },
+  { id: "dsa", label: "DSA & competitive", description: "Problem solving, contests and algorithmic depth." },
+  { id: "security", label: "Cybersecurity", description: "Security labs, challenges and research platforms." },
+  { id: "learning", label: "Learning", description: "Courses, certifications and study streaks." },
+  { id: "projects", label: "Projects", description: "Personal and team projects you build." },
+  { id: "open_source", label: "Open source", description: "Contributions to public repositories." },
+  { id: "community", label: "Community", description: "Answers, discussions and reputation you earn." },
+  { id: "goals", label: "Goals & habits", description: "Targets you set and the habits behind them." },
+];
+
+export const categoryMap: Record<string, CategoryMeta> = Object.fromEntries(
+  categories.map((c) => [c.id, c]),
+);
+
 /** Capabilities a platform exposes, used to decide which panels to render. */
 export type Capability = "problems" | "contests" | "repositories" | "languages" | "activity" | "reputation" | "topics";
 
@@ -84,6 +116,8 @@ export interface Integration {
   /** Primary metric used for comparison ranking. */
   rankMetric: string;
   capabilities: Capability[];
+  /** Progress areas this integration feeds. */
+  categories: CategoryId[];
   docsUrl: string;
   apiNote: string;
 }
@@ -101,6 +135,7 @@ export const integrations: Integration[] = [
     headlineMetrics: ["solved_all", "contest_rating", "ranking"],
     rankMetric: "solved_all",
     capabilities: ["problems", "contests", "languages", "activity", "topics"],
+    categories: ["dsa", "learning"],
     docsUrl: "https://leetcode.com",
     apiNote: "Public GraphQL profile endpoint. Only public profiles can be read.",
   },
@@ -116,6 +151,7 @@ export const integrations: Integration[] = [
     headlineMetrics: ["public_repos", "stars", "followers"],
     rankMetric: "stars",
     capabilities: ["repositories", "languages", "activity"],
+    categories: ["development", "open_source", "projects"],
     docsUrl: "https://docs.github.com/rest",
     apiNote: "Public REST API v3. Unauthenticated reads are rate limited per hour.",
   },
@@ -131,6 +167,7 @@ export const integrations: Integration[] = [
     headlineMetrics: ["rating", "solved", "contests"],
     rankMetric: "rating",
     capabilities: ["problems", "contests", "languages", "activity", "topics"],
+    categories: ["dsa"],
     docsUrl: "https://codeforces.com/apiHelp",
     apiNote: "Official public API. Rating and submission history included.",
   },
@@ -146,6 +183,7 @@ export const integrations: Integration[] = [
     headlineMetrics: ["honor", "solved", "score"],
     rankMetric: "honor",
     capabilities: ["problems", "languages", "reputation"],
+    categories: ["dsa", "learning"],
     docsUrl: "https://dev.codewars.com/",
     apiNote: "Public v1 API. Profile must not be private.",
   },
@@ -161,6 +199,7 @@ export const integrations: Integration[] = [
     headlineMetrics: ["reputation", "answers", "gold"],
     rankMetric: "reputation",
     capabilities: ["reputation", "topics"],
+    categories: ["community", "development"],
     docsUrl: "https://api.stackexchange.com/docs",
     apiNote: "Stack Exchange API 2.3. Uses the numeric user id.",
   },
@@ -184,6 +223,7 @@ export function getIntegration(platform: string): Integration {
       headlineMetrics: [],
       rankMetric: "",
       capabilities: [],
+      categories: [],
       docsUrl: "#",
       apiNote: "Custom adapter.",
     }
