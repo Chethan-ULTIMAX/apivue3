@@ -1689,7 +1689,3 @@ export const LandingPage = () => {
 };
 
 export default LandingPage;
-
-function setStyle(arg0: { transform: string; boxShadow: string; }) {
-  throw new Error('Function not implemented.');
-}

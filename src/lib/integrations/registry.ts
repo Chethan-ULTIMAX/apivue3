@@ -1,62 +1,68 @@
-import { Github, Code2, Trophy, Swords, MessageSquareCode, type LucideIcon } from "lucide-react";
+export type IntegrationId = 'github' | 'codeforces';
 
-export type MetricFormat = "number" | "decimal" | "percent" | "text" | "date";
+export type CategoryId =
+  | 'development'
+  | 'competitive-programming'
+  | 'learning'
+  | 'activity'
+  | 'goals';
+
+export interface CategoryDefinition {
+  id: CategoryId;
+  label: string;
+  description: string;
+}
+
+export interface MetricDefinition {
+  key: string;
+  label: string;
+  unit?: string;
+}
+
+export interface IntegrationDefinition {
+  id: IntegrationId;
+  name: string;
+  description: string;
+
+  // Kept for existing UI code
+  category: string;
+
+  // Used by progress analytics
+  categories: CategoryId[];
+
+  available: boolean;
+
+  authType:
+    | 'oauth'
+    | 'username'
+    | 'coming-soon';
+
+  metrics?: MetricDefinition[];
+}
 
 export interface Metric {
   key: string;
   label: string;
-  value: number | string | null;
-  format: MetricFormat;
-  group?: string;
-}
-
-export interface SeriesPoint {
-  date: string;
-  value: number;
-  label?: string;
-}
-
-export interface Breakdown {
-  key: string;
-  label: string;
+  value: string | number;
+  change?: number;
   unit?: string;
-  items: { name: string; value: number }[];
 }
 
-export interface ActivityPoint {
-  date: string;
-  count: number;
-}
-
-export interface NormalizedProfile {
-  platform: string;
-  handle: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  profileUrl: string | null;
-  bio: string | null;
-  location: string | null;
-  joinedAt: string | null;
-  metrics: Metric[];
-  breakdowns: Breakdown[];
-  ratingHistory: SeriesPoint[];
-  activity: ActivityPoint[];
-  highlights: { title: string; subtitle?: string; value?: string; url?: string }[];
-  fetchedAt: string;
+export interface ProfileData {
+  metrics?: Metric[];
+  activity?: {
+    date: string;
+    count: number;
+  }[];
 }
 
 export interface TrackedProfile {
   id: string;
-  platform: string;
+  platform: IntegrationId | string;
+  username?: string;
   handle: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  profile_url: string | null;
-  data: NormalizedProfile;
-  pinned: boolean;
-  sync_error: string | null;
-  last_synced_at: string | null;
-  created_at: string;
+  displayName?: string;
+  data?: ProfileData;
 }
 
 export interface ProfileSnapshot {
@@ -66,185 +72,114 @@ export interface ProfileSnapshot {
   metrics: Record<string, number>;
 }
 
-/** Progress areas APIVue tracks. New areas can be added without touching views. */
-export type CategoryId =
-  | "development"
-  | "dsa"
-  | "security"
-  | "learning"
-  | "projects"
-  | "open_source"
-  | "community"
-  | "goals";
-
-export interface CategoryMeta {
-  id: CategoryId;
-  label: string;
-  description: string;
-}
-
-export const categories: CategoryMeta[] = [
-  { id: "development", label: "Development", description: "Day-to-day coding output and shipped work." },
-  { id: "dsa", label: "DSA & competitive", description: "Problem solving, contests and algorithmic depth." },
-  { id: "security", label: "Cybersecurity", description: "Security labs, challenges and research platforms." },
-  { id: "learning", label: "Learning", description: "Courses, certifications and study streaks." },
-  { id: "projects", label: "Projects", description: "Personal and team projects you build." },
-  { id: "open_source", label: "Open source", description: "Contributions to public repositories." },
-  { id: "community", label: "Community", description: "Answers, discussions and reputation you earn." },
-  { id: "goals", label: "Goals & habits", description: "Targets you set and the habits behind them." },
-];
-
-export const categoryMap: Record<string, CategoryMeta> = Object.fromEntries(
-  categories.map((c) => [c.id, c]),
-);
-
-/** Capabilities a platform exposes, used to decide which panels to render. */
-export type Capability = "problems" | "contests" | "repositories" | "languages" | "activity" | "reputation" | "topics";
-
-export interface Integration {
-  id: string;
-  name: string;
-  icon: LucideIcon;
-  /** HSL token-free accent used only for chart series and platform dots. */
-  accent: string;
-  tagline: string;
-  handleLabel: string;
-  handlePlaceholder: string;
-  handleHint: string;
-  /** Metric keys shown on compact cards, in order. */
-  headlineMetrics: string[];
-  /** Primary metric used for comparison ranking. */
-  rankMetric: string;
-  capabilities: Capability[];
-  /** Progress areas this integration feeds. */
-  categories: CategoryId[];
-  docsUrl: string;
-  apiNote: string;
-}
-
-export const integrations: Integration[] = [
+export const categories: CategoryDefinition[] = [
   {
-    id: "leetcode",
-    name: "LeetCode",
-    icon: Code2,
-    accent: "hsl(38 92% 50%)",
-    tagline: "Problem solving, difficulty split and contest rating history.",
-    handleLabel: "Username",
-    handlePlaceholder: "e.g. neetcode",
-    handleHint: "Your public LeetCode username, from leetcode.com/u/<username>.",
-    headlineMetrics: ["solved_all", "contest_rating", "ranking"],
-    rankMetric: "solved_all",
-    capabilities: ["problems", "contests", "languages", "activity", "topics"],
-    categories: ["dsa", "learning"],
-    docsUrl: "https://leetcode.com",
-    apiNote: "Public GraphQL profile endpoint. Only public profiles can be read.",
+    id: 'development',
+    label: 'Development',
+    description: 'Software development and coding activity.',
   },
   {
-    id: "github",
-    name: "GitHub",
-    icon: Github,
-    accent: "hsl(243 75% 59%)",
-    tagline: "Repositories, stars, languages and recent push activity.",
-    handleLabel: "Username",
-    handlePlaceholder: "e.g. torvalds",
-    handleHint: "Your GitHub username, from github.com/<username>.",
-    headlineMetrics: ["public_repos", "stars", "followers"],
-    rankMetric: "stars",
-    capabilities: ["repositories", "languages", "activity"],
-    categories: ["development", "open_source", "projects"],
-    docsUrl: "https://docs.github.com/rest",
-    apiNote: "Public REST API v3. Unauthenticated reads are rate limited per hour.",
+    id: 'competitive-programming',
+    label: 'Competitive Programming',
+    description: 'Problem solving, contests, ratings and submissions.',
   },
   {
-    id: "codeforces",
-    name: "Codeforces",
-    icon: Trophy,
-    accent: "hsl(199 89% 48%)",
-    tagline: "Competitive rating curve, solved tags and submission accuracy.",
-    handleLabel: "Handle",
-    handlePlaceholder: "e.g. tourist",
-    handleHint: "Your Codeforces handle, from codeforces.com/profile/<handle>.",
-    headlineMetrics: ["rating", "solved", "contests"],
-    rankMetric: "rating",
-    capabilities: ["problems", "contests", "languages", "activity", "topics"],
-    categories: ["dsa"],
-    docsUrl: "https://codeforces.com/apiHelp",
-    apiNote: "Official public API. Rating and submission history included.",
+    id: 'learning',
+    label: 'Learning',
+    description: 'Learning and educational activity.',
   },
   {
-    id: "codewars",
-    name: "Codewars",
-    icon: Swords,
-    accent: "hsl(0 72% 51%)",
-    tagline: "Honor, kata completions and per-language scores.",
-    handleLabel: "Username",
-    handlePlaceholder: "e.g. someuser",
-    handleHint: "Your Codewars username, from codewars.com/users/<username>.",
-    headlineMetrics: ["honor", "solved", "score"],
-    rankMetric: "honor",
-    capabilities: ["problems", "languages", "reputation"],
-    categories: ["dsa", "learning"],
-    docsUrl: "https://dev.codewars.com/",
-    apiNote: "Public v1 API. Profile must not be private.",
+    id: 'activity',
+    label: 'Activity',
+    description: 'General activity and consistency over time.',
   },
   {
-    id: "stackoverflow",
-    name: "Stack Overflow",
-    icon: MessageSquareCode,
-    accent: "hsl(25 95% 53%)",
-    tagline: "Reputation, badges and the tags you answer best.",
-    handleLabel: "User id",
-    handlePlaceholder: "e.g. 22656",
-    handleHint: "The numeric id in stackoverflow.com/users/<id>/<name>.",
-    headlineMetrics: ["reputation", "answers", "gold"],
-    rankMetric: "reputation",
-    capabilities: ["reputation", "topics"],
-    categories: ["community", "development"],
-    docsUrl: "https://api.stackexchange.com/docs",
-    apiNote: "Stack Exchange API 2.3. Uses the numeric user id.",
+    id: 'goals',
+    label: 'Goals',
+    description: 'Personal goals and progress toward them.',
   },
 ];
 
-export const integrationMap: Record<string, Integration> = Object.fromEntries(
-  integrations.map((i) => [i.id, i]),
-);
+export const integrations: IntegrationDefinition[] = [
+  {
+    id: 'github',
+    name: 'GitHub',
+    description:
+      'Repositories, contributions, activity, profile and development history.',
+    category: 'Development',
+    categories: ['development', 'activity'],
+    available: true,
+    authType: 'oauth',
+    metrics: [
+      {
+        key: 'repositories',
+        label: 'Repositories',
+      },
+      {
+        key: 'followers',
+        label: 'Followers',
+      },
+      {
+        key: 'following',
+        label: 'Following',
+      },
+    ],
+  },
 
-export function getIntegration(platform: string): Integration {
+  {
+    id: 'codeforces',
+    name: 'Codeforces',
+    description:
+      'Ratings, contests, submissions and competitive programming activity.',
+    category: 'Competitive Programming',
+    categories: ['competitive-programming', 'activity'],
+    available: true,
+    authType: 'username',
+    metrics: [
+      {
+        key: 'rating',
+        label: 'Rating',
+      },
+      {
+        key: 'maxRating',
+        label: 'Max Rating',
+      },
+      {
+        key: 'rank',
+        label: 'Rank',
+      },
+    ],
+  },
+];
+
+export function getIntegration(
+  id: IntegrationId | string,
+): IntegrationDefinition {
   return (
-    integrationMap[platform] ?? {
-      id: platform,
-      name: platform,
-      icon: Code2,
-      accent: "hsl(220 10% 50%)",
-      tagline: "Custom integration.",
-      handleLabel: "Handle",
-      handlePlaceholder: "handle",
-      handleHint: "Public handle on this platform.",
-      headlineMetrics: [],
-      rankMetric: "",
-      capabilities: [],
+    integrations.find((integration) => integration.id === id) ??
+    {
+      id: id as IntegrationId,
+      name: id,
+      description: '',
+      category: 'Other',
       categories: [],
-      docsUrl: "#",
-      apiNote: "Custom adapter.",
+      available: false,
+      authType: 'coming-soon',
     }
   );
 }
 
-export function metricOf(profile: TrackedProfile | undefined, key: string): Metric | undefined {
-  return profile?.data?.metrics?.find((m) => m.key === key);
+export function formatMetric(metric: Metric): string {
+  if (typeof metric.value === 'number') {
+    return `${metric.value}${metric.unit ?? ''}`;
+  }
+
+  return metric.value;
 }
 
-export function formatMetric(value: number | string | null | undefined, format: MetricFormat = "number"): string {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "string") return value;
-  switch (format) {
-    case "percent":
-      return `${value}%`;
-    case "decimal":
-      return value.toFixed(1);
-    case "date":
-      return new Date(value).toLocaleDateString();
-    default:
-      return value.toLocaleString();
-  }
+export function metricOf(
+  metrics: Metric[] | undefined,
+  label: string,
+): Metric | undefined {
+  return metrics?.find((metric) => metric.label === label);
 }
