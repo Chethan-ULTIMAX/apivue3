@@ -181,7 +181,11 @@ export function ProfileDetailView() {
                       )}
                       {h.subtitle && <p className="text-[11px] text-muted-foreground truncate">{h.subtitle}</p>}
                     </div>
-                    {h.value && <span className="text-xs font-semibold tabular-nums">{h.value}</span>}
+                    {h.subtitle && (
+                      <span className="text-xs font-semibold tabular-nums">
+                        {h.subtitle}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

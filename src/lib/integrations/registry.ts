@@ -1,11 +1,14 @@
-export type IntegrationId = 'github' | 'codeforces';
+import type { LucideIcon } from "lucide-react";
+import { Github, Code2 } from "lucide-react";
+
+export type IntegrationId = "github" | "codeforces";
 
 export type CategoryId =
-  | 'development'
-  | 'competitive-programming'
-  | 'learning'
-  | 'activity'
-  | 'goals';
+  | "development"
+  | "competitive-programming"
+  | "learning"
+  | "activity"
+  | "goals";
 
 export interface CategoryDefinition {
   id: CategoryId;
@@ -23,20 +26,19 @@ export interface IntegrationDefinition {
   id: IntegrationId;
   name: string;
   description: string;
-
-  // Kept for existing UI code
   category: string;
-
-  // Used by progress analytics
   categories: CategoryId[];
-
   available: boolean;
+  authType: "oauth" | "username" | "coming-soon";
 
-  authType:
-    | 'oauth'
-    | 'username'
-    | 'coming-soon';
+  icon: LucideIcon;
+  accent: string;
 
+  handleLabel: string;
+  handlePlaceholder: string;
+  handleHint: string;
+
+  headlineMetrics: string[];
   metrics?: MetricDefinition[];
 }
 
@@ -46,24 +48,76 @@ export interface Metric {
   value: string | number;
   change?: number;
   unit?: string;
+  format?: string;
+}
+
+export interface RatingHistoryPoint {
+  date: string;
+  value: number;
+}
+
+export interface ProfileHighlight {
+  title: string;
+  url?: string;
+  subtitle?: string;
+}
+
+export interface ProfileBreakdown {
+  key: string;
+  label: string;
+  unit?: string;
+  items: {
+    label: string;
+    value: number;
+  }[];
 }
 
 export interface ProfileData {
+  bio?: string;
+  location?: string;
+  joinedAt?: string;
+
   metrics?: Metric[];
+
   activity?: {
     date: string;
     count: number;
   }[];
+
+  ratingHistory?: RatingHistoryPoint[];
+  highlights?: ProfileHighlight[];
+  breakdowns?: ProfileBreakdown[];
 }
 
 export interface TrackedProfile {
   id: string;
+
   platform: IntegrationId | string;
+
   username?: string;
   handle: string;
+
   displayName?: string;
+  display_name?: string;
+
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+
+  profileUrl?: string;
+  profile_url?: string;
+
+  pinned?: boolean;
+
+  lastSyncedAt?: string;
+  last_synced_at?: string;
+
+  syncError?: string;
+  sync_error?: string;
+
   data?: ProfileData;
 }
+
+export type NormalizedProfile = TrackedProfile;
 
 export interface ProfileSnapshot {
   id: string;
@@ -74,80 +128,82 @@ export interface ProfileSnapshot {
 
 export const categories: CategoryDefinition[] = [
   {
-    id: 'development',
-    label: 'Development',
-    description: 'Software development and coding activity.',
+    id: "development",
+    label: "Development",
+    description: "Software development and coding activity.",
   },
   {
-    id: 'competitive-programming',
-    label: 'Competitive Programming',
-    description: 'Problem solving, contests, ratings and submissions.',
+    id: "competitive-programming",
+    label: "Competitive Programming",
+    description: "Problem solving, contests, ratings and submissions.",
   },
   {
-    id: 'learning',
-    label: 'Learning',
-    description: 'Learning and educational activity.',
+    id: "learning",
+    label: "Learning",
+    description: "Learning and educational activity.",
   },
   {
-    id: 'activity',
-    label: 'Activity',
-    description: 'General activity and consistency over time.',
+    id: "activity",
+    label: "Activity",
+    description: "General activity and consistency over time.",
   },
   {
-    id: 'goals',
-    label: 'Goals',
-    description: 'Personal goals and progress toward them.',
+    id: "goals",
+    label: "Goals",
+    description: "Personal goals and progress toward them.",
   },
 ];
 
 export const integrations: IntegrationDefinition[] = [
   {
-    id: 'github',
-    name: 'GitHub',
+    id: "github",
+    name: "GitHub",
     description:
-      'Repositories, contributions, activity, profile and development history.',
-    category: 'Development',
-    categories: ['development', 'activity'],
+      "Repositories, contributions, activity, profile and development history.",
+    category: "Development",
+    categories: ["development", "activity"],
     available: true,
-    authType: 'oauth',
+    authType: "oauth",
+
+    icon: Github,
+    accent: "#8b5cf6",
+
+    handleLabel: "GitHub username",
+    handlePlaceholder: "octocat",
+    handleHint: "Enter a public GitHub username.",
+
+    headlineMetrics: ["repositories", "followers"],
+
     metrics: [
-      {
-        key: 'repositories',
-        label: 'Repositories',
-      },
-      {
-        key: 'followers',
-        label: 'Followers',
-      },
-      {
-        key: 'following',
-        label: 'Following',
-      },
+      { key: "repositories", label: "Repositories" },
+      { key: "followers", label: "Followers" },
+      { key: "following", label: "Following" },
     ],
   },
 
   {
-    id: 'codeforces',
-    name: 'Codeforces',
+    id: "codeforces",
+    name: "Codeforces",
     description:
-      'Ratings, contests, submissions and competitive programming activity.',
-    category: 'Competitive Programming',
-    categories: ['competitive-programming', 'activity'],
+      "Ratings, contests, submissions and competitive programming activity.",
+    category: "Competitive Programming",
+    categories: ["competitive-programming", "activity"],
     available: true,
-    authType: 'username',
+    authType: "username",
+
+    icon: Code2,
+    accent: "#f59e0b",
+
+    handleLabel: "Codeforces handle",
+    handlePlaceholder: "tourist",
+    handleHint: "Enter a public Codeforces handle.",
+
+    headlineMetrics: ["rating", "maxRating"],
+
     metrics: [
-      {
-        key: 'rating',
-        label: 'Rating',
-      },
-      {
-        key: 'maxRating',
-        label: 'Max Rating',
-      },
-      {
-        key: 'rank',
-        label: 'Rank',
-      },
+      { key: "rating", label: "Rating" },
+      { key: "maxRating", label: "Max Rating" },
+      { key: "rank", label: "Rank" },
     ],
   },
 ];
@@ -160,26 +216,56 @@ export function getIntegration(
     {
       id: id as IntegrationId,
       name: id,
-      description: '',
-      category: 'Other',
+      description: "",
+      category: "Other",
       categories: [],
       available: false,
-      authType: 'coming-soon',
+      authType: "coming-soon",
+
+      icon: Code2,
+      accent: "hsl(var(--primary))",
+
+      handleLabel: "Username",
+      handlePlaceholder: "username",
+      handleHint: "",
+
+      headlineMetrics: [],
     }
   );
 }
 
-export function formatMetric(metric: Metric): string {
-  if (typeof metric.value === 'number') {
-    return `${metric.value}${metric.unit ?? ''}`;
+export function formatMetric(
+  metric: Metric | string | number,
+  format?: string,
+): string {
+  if (typeof metric === "object") {
+    if (format === "number" || metric.format === "number") {
+      return Number(metric.value).toLocaleString();
+    }
+
+    if (typeof metric.value === "number") {
+      return `${metric.value}${metric.unit ?? ""}`;
+    }
+
+    return metric.value;
   }
 
-  return metric.value;
+  if (format === "number" && typeof metric === "number") {
+    return metric.toLocaleString();
+  }
+
+  return String(metric);
 }
 
 export function metricOf(
-  metrics: Metric[] | undefined,
-  label: string,
+  profileOrMetrics: Metric[] | TrackedProfile | undefined,
+  key: string,
 ): Metric | undefined {
-  return metrics?.find((metric) => metric.label === label);
+  const metrics = Array.isArray(profileOrMetrics)
+    ? profileOrMetrics
+    : profileOrMetrics?.data?.metrics;
+
+  return metrics?.find(
+    (metric) => metric.key === key || metric.label === key,
+  );
 }
