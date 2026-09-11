@@ -76,7 +76,7 @@ export function GoalsView() {
   goalsProgress.forEach((g) => {
     const status = g.status;
     if (status in goalsByStatus) {
-      (goalsByStatus as any)[status].push(g);
+      goalsByStatus[status].push(g);
     } else {
       goalsByStatus.active.push(g);
     }
@@ -365,6 +365,7 @@ export function GoalsView() {
 
 // Goal card component
 function GoalCard({ goalProgress, onDelete }: { goalProgress: GoalProgress; onDelete: () => void }) {
+  const updateGoal = useUpdateGoal();
   const progress = Math.min(100, Math.round(goalProgress.progressPercentage));
   const isCompleted = goalProgress.status === "completed";
 

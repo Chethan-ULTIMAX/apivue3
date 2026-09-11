@@ -16,6 +16,7 @@ import {
   buildProgressReport,
   type ProgressReport,
 } from './progress';
+import { getIntegration } from '@/lib/integrations/registry';
 
 /**
  * AI Insight categories
@@ -350,7 +351,7 @@ function generateGoalInsights(profiles: TrackedProfile[], report: ProgressReport
   // Insight for category coverage
   const coveredCategories = new Set<string>();
   for (const profile of profiles) {
-    const integration = (window as any).getIntegration(profile.platform);
+    const integration = getIntegration(profile.platform);
     if (integration?.categories) {
       integration.categories.forEach((c: string) => coveredCategories.add(c));
     }
@@ -369,7 +370,7 @@ function generateGoalInsights(profiles: TrackedProfile[], report: ProgressReport
       evidence: {
         covered: coveredCategories.size,
         total: totalCategories,
-        categories: Array.from(coveredCategories),
+        categories: Array.from(coveredCategories).join(', '),
       },
       actionable: true,
       suggestions: [
@@ -644,7 +645,7 @@ export function getAIShortSummary(profiles: TrackedProfile[], snapshots: Profile
   if (profiles.length === 0) {
     summary = 'No profiles connected yet. Connect platforms to start analytical intelligence.';
   } else if (snapshots.length < 3) {
-    summary = `Building your history with ${snapshots.length} snapshot${snapshots.length === 1 ? '' : 's'}. More data will unlock deeper insights.`;
+    summary = `Building your history with ${snapshots.length} snapshot${snapshots.length === 1 ? '' : 's'}. Collect at least 1 snapshot to unlock deeper insights.`;
   } else if (score >= 70) {
     summary = `Strong progress! Score: ${score}/100. Your digital activity shows ${allInsights.length} notable pattern${allInsights.length === 1 ? '' : 's'}.`;
   } else if (score >= 40) {

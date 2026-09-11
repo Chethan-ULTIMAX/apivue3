@@ -1,10 +1,11 @@
+import type { SyntheticEvent } from "react";
 import { Users, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { chartAxisStyle, chartGridStroke, chartTooltipStyle } from "@/components/apivue/ProfileBits";
 import type { TrackedProfile } from "@/lib/integrations/registry";
 import { formatMetric, getIntegration } from "@/lib/integrations/registry";
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const SERIES_COLORS = ["hsl(var(--primary))", "hsl(199 89% 48%)", "hsl(142 71% 45%)", "hsl(25 95% 53%)", "hsl(280 67% 60%)"];
 
@@ -86,14 +87,14 @@ export function FriendComparison({ profiles, onClose }: FriendComparisonProps) {
   // Timeline data with all profiles
   const timelineData = Object.entries(sharedActivity)
     .map(([date, activities]) => {
-      const dataPoint: Record<string, number> = { date };
+      const dataPoint: Record<string, string | number> = { date };
       profiles.forEach((profile) => {
         const activity = activities.find((a) => a.profile === profile.handle);
         dataPoint[profile.handle] = activity ? activity.count : 0;
       });
       return dataPoint;
     })
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto">
@@ -122,8 +123,8 @@ export function FriendComparison({ profiles, onClose }: FriendComparisonProps) {
                       src={profile.avatar_url || undefined}
                       alt={profile.display_name || profile.handle}
                       className="h-10 w-10 rounded-full object-cover border border-border shrink-0"
-                      onError={(e: any) => {
-                        e.target.style.display = 'none';
+                      onError={(e: SyntheticEvent<HTMLImageElement>) => {
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
                     <div>

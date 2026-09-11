@@ -47,7 +47,7 @@ export function calculateGoalProgress(
   }
 
   // Determine progress value based on goal type
-  let currentValue = goal.current_value;
+  const currentValue = goal.current_value;
   const targetValue = goal.target_value ?? null;
 
   // Calculate progress percentage
@@ -57,7 +57,9 @@ export function calculateGoalProgress(
   }
 
   // Determine status
-  let status: GoalProgress["status"] = goal.status;
+  let status: GoalProgress["status"] = goal.current_value >= (goal.target_value ?? Number.POSITIVE_INFINITY)
+    ? "completed"
+    : goal.status === "active" ? "on-track" : goal.status;
   
   if (!status) {
     if (targetValue && currentValue >= targetValue) {
@@ -202,7 +204,14 @@ export function generateGoalActions(progress: GoalProgress[]): Array<{
   priority: 1 | 2 | 3;
   goalId?: string;
 }> {
-  const actions: Array<{ id: string; type: any; title: string; description: string; priority: number; goalId?: string }> = [];
+  const actions: Array<{
+    id: string;
+    type: "celebrate" | "encourage" | "warn" | "suggest";
+    title: string;
+    description: string;
+    priority: 1 | 2 | 3;
+    goalId?: string;
+  }> = [];
   
   // Celebrate completed goals
   progress.filter((g) => g.status === "completed").forEach((g) => {

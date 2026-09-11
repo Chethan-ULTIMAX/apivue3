@@ -193,16 +193,14 @@ export function computeActivityStats(timeline: { date: string; count: number }[]
     const today = new Date();
     const todayTime = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
     const gapDays = (todayTime - lastTime) / 86_400_000;
-    if (gapDays <= 1) {
-      currentStreak = 1;
-      let cursor = lastTime;
-      const activeSet = new Set(active.map((d) => d.date));
-      for (;;) {
-        cursor -= 86_400_000;
-        const key = new Date(cursor).toISOString().slice(0, 10);
-        if (!activeSet.has(key)) break;
-        currentStreak += 1;
-      }
+    currentStreak = 1;
+    let cursor = lastTime;
+    const activeSet = new Set(active.map((d) => d.date));
+    for (;;) {
+      cursor -= 86_400_000;
+      const key = new Date(cursor).toISOString().slice(0, 10);
+      if (!activeSet.has(key)) break;
+      currentStreak += 1;
     }
   }
 
@@ -300,6 +298,15 @@ export function buildProgressReport(
   const trends = buildTrends(profiles, snapshots);
   const timeline = mergeActivity(profiles);
   const activity = computeActivityStats(timeline);
+  if (activity.currentStreak > 0 && timeline.length > 0) {
+    const latestActive = timeline.filter((entry) => entry.count > 0).at(-1);
+    if (latestActive) {
+      const latestTime = new Date(`${latestActive.date}T00:00:00Z`).getTime();
+      const now = new Date();
+      const todayTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+      if ((todayTime - latestTime) / 86_400_000 > 1) activity.currentStreak = 0;
+    }
+  }
   const dates = snapshots.map((s) => s.captured_at).sort();
   const historyDays =
     dates.length > 1

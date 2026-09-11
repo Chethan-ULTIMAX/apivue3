@@ -101,10 +101,10 @@ export function ProfileComparison({ profile, onClose }: ProfileComparisonProps) 
                       <span className="text-muted-foreground">Display Name</span>
                       <span className="font-medium">{profile.display_name || 'N/A'}</span>
                     </div>
-                    {profile.bio && (
+                    {profile.data?.bio && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Bio</span>
-                        <span className="font-medium text-right">{profile.bio}</span>
+                        <span className="font-medium text-right">{profile.data.bio}</span>
                       </div>
                     )}
                   </div>
