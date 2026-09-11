@@ -17,6 +17,7 @@ import {
 
 import {
   getSessionId,
+  requireSupabaseUser,
 } from '../middleware/session';
 
 import {
@@ -29,6 +30,7 @@ import {
 } from '../storage/connections';
 
 import { env } from '../env';
+import { supabaseAdmin } from '../supabase';
 
 const router = Router();
 
@@ -54,28 +56,37 @@ function requireSession(
  *
  * Returns the currently connected platforms.
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
+  const user = await requireSupabaseUser(req, res);
+  if (!user) return;
   const sessionId = requireSession(req, res);
 
   if (!sessionId) {
     return;
   }
 
-  const github =
-    getGitHubConnection(sessionId);
+  const { data: persistedGithub } = await supabaseAdmin
+    .from('connected_accounts')
+    .select('username, display_name, avatar_url, profile_url, connected_at, last_synced_at')
+    .eq('user_id', user.id)
+    .eq('provider', 'github')
+    .maybeSingle();
+
+  const github = getGitHubConnection(sessionId);
 
   const codeforces =
     getCodeforcesConnection(sessionId);
 
   res.json({
-    github: github
+    github: persistedGithub || github
       ? {
           connected: true,
-          username: github.username,
-          displayName: github.displayName,
-          avatarUrl: github.avatarUrl,
-          profileUrl: github.profileUrl,
-          connectedAt: github.connectedAt,
+          username: persistedGithub?.username ?? github?.username,
+          displayName: persistedGithub?.display_name ?? github?.displayName,
+          avatarUrl: persistedGithub?.avatar_url ?? github?.avatarUrl,
+          profileUrl: persistedGithub?.profile_url ?? github?.profileUrl,
+          connectedAt: persistedGithub?.connected_at ?? github?.connectedAt,
+          lastSyncedAt: persistedGithub?.last_synced_at,
         }
       : {
           connected: false,
@@ -104,6 +115,8 @@ router.get('/', (req, res) => {
 router.get(
   '/github/connect',
   async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
@@ -113,10 +126,11 @@ router.get(
     try {
       const url =
         await createGitHubAuthorizationUrl(
-          sessionId
+          sessionId,
+          user.id,
         );
 
-      res.redirect(url);
+      res.json({ url });
     } catch (error) {
       console.error(error);
 
@@ -186,6 +200,7 @@ router.get(
 
       saveGitHubConnection(sessionId, {
         provider: 'github',
+        userId: pending.userId,
         providerUserId: user.id,
         username: user.login,
         displayName: user.name,
@@ -195,6 +210,22 @@ router.get(
         connectedAt:
           new Date().toISOString(),
       });
+
+      const { error: accountError } = await supabaseAdmin
+        .from('connected_accounts')
+        .upsert({
+          user_id: pending.userId,
+          provider: 'github',
+          provider_user_id: String(user.id),
+          username: user.login,
+          display_name: user.name,
+          avatar_url: user.avatar_url,
+          profile_url: user.html_url,
+          metadata: { access: 'oauth', scope: 'read:user' },
+          connected_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,provider' });
+      if (accountError) throw new Error('Could not persist GitHub connection.');
 
       res.redirect(
         `${env.clientUrl}/dashboard/integrations?connected=github`
@@ -214,7 +245,9 @@ router.get(
  */
 router.post(
   '/github/disconnect',
-  (req, res) => {
+  async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
@@ -222,12 +255,79 @@ router.post(
     }
 
     deleteGitHubConnection(sessionId);
+    await supabaseAdmin.from('connected_accounts').delete().eq('user_id', user.id).eq('provider', 'github');
 
     res.json({
       success: true,
     });
   }
 );
+
+router.post('/github/sync', async (req, res) => {
+  const user = await requireSupabaseUser(req, res);
+  if (!user) return;
+  const sessionId = requireSession(req, res);
+  if (!sessionId) return;
+  const connection = getGitHubConnection(sessionId);
+  if (!connection || connection.userId !== user.id) {
+    res.status(409).json({ error: 'GitHub must be connected again before syncing.' });
+    return;
+  }
+  try {
+    const profile = await getGitHubUser(connection.accessToken);
+    const syncedAt = new Date().toISOString();
+    const normalized = {
+      platform: 'github',
+      handle: profile.login,
+      displayName: profile.name ?? profile.login,
+      avatarUrl: profile.avatar_url,
+      profileUrl: profile.html_url,
+      bio: profile.bio,
+      location: null,
+      joinedAt: null,
+      metrics: [
+        { key: 'public_repos', label: 'Public repositories', value: profile.public_repos, format: 'number' },
+        { key: 'followers', label: 'Followers', value: profile.followers, format: 'number' },
+        { key: 'following', label: 'Following', value: profile.following, format: 'number' },
+      ],
+      breakdowns: [],
+      ratingHistory: [],
+      activity: [],
+      highlights: [],
+      fetchedAt: syncedAt,
+    };
+    const { data: tracked, error: trackedError } = await supabaseAdmin.from('tracked_profiles').upsert({
+      user_id: user.id,
+      platform: 'github',
+      handle: profile.login,
+      display_name: normalized.displayName,
+      avatar_url: normalized.avatarUrl,
+      profile_url: normalized.profileUrl,
+      data: normalized,
+      sync_error: null,
+      last_synced_at: syncedAt,
+    }, { onConflict: 'user_id,platform,handle' }).select('id').single();
+    if (trackedError || !tracked) throw new Error('Could not save GitHub profile history.');
+    const { error: snapshotError } = await supabaseAdmin.from('profile_snapshots').insert({
+      profile_id: tracked.id,
+      user_id: user.id,
+      captured_at: syncedAt,
+      metrics: Object.fromEntries(normalized.metrics.map((metric) => [metric.key, metric.value])),
+    });
+    if (snapshotError) throw new Error('Could not save GitHub history snapshot.');
+    const { error } = await supabaseAdmin.from('connected_accounts').update({
+      username: profile.login,
+      display_name: profile.name,
+      avatar_url: profile.avatar_url,
+      profile_url: profile.html_url,
+      last_synced_at: syncedAt,
+    }).eq('user_id', user.id).eq('provider', 'github');
+    if (error) throw new Error('Could not save GitHub sync metadata.');
+    res.json({ syncedAt, username: profile.login });
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : 'GitHub sync failed.' });
+  }
+});
 
 /**
  * POST /api/integrations/codeforces/connect

@@ -90,7 +90,7 @@ export function ProfilesView() {
                 <div className="flex items-start gap-3 mb-3">
                   <ProfileAvatar profile={p} />
                   <div className="min-w-0 flex-1">
-                    <Link to={`/dashboard/profiles/${p.id}`} className="text-sm font-medium truncate block hover:text-primary">
+                    <Link to={`/dashboard/profile/${p.id}`} className="text-sm font-medium truncate block hover:text-primary">
                       {p.display_name || p.handle}
                     </Link>
                     <p className="text-[11px] text-muted-foreground font-mono-id truncate">@{p.handle}</p>

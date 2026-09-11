@@ -10,6 +10,8 @@ export interface ConnectedAccount {
   avatarUrl?: string | null;
   profileUrl?: string;
   connectedAt?: string;
+  lastSyncedAt?: string;
+  error?: string;
 }
 
 export interface IntegrationStatus {

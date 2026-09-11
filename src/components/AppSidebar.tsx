@@ -13,12 +13,12 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 
 const navItems = [
-  { icon: LayoutDashboard, label: 'Overview', href: '/' },
-  { icon: Users, label: 'Profiles', href: '/profiles' },
-  { icon: TrendingUp, label: 'Progress', href: '/progress' },
-  { icon: Plug, label: 'Integrations', href: '/integrations' },
-  { icon: Brain, label: 'AI Insights', href: '/ai-insights' },
-  { icon: Target, label: 'Goals', href: '/goals' },
+  { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
+  { icon: Users, label: 'Profiles', href: '/dashboard/profiles' },
+  { icon: TrendingUp, label: 'Progress', href: '/dashboard/progress' },
+  { icon: Plug, label: 'Integrations', href: '/dashboard/integrations' },
+  { icon: Brain, label: 'AI Insights', href: '/dashboard/ai-insights' },
+  { icon: Target, label: 'Goals', href: '/dashboard/goals' },
 ];
 
 export function AppSidebar() {
@@ -36,8 +36,7 @@ export function AppSidebar() {
 
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.href ||
-            (item.href !== '/' && location.pathname.startsWith(item.href));
+          const isActive = location.pathname === item.href;
           return (
             <Link
               key={item.href}

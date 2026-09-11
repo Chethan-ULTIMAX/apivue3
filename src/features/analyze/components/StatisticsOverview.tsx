@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { ProgressReport } from '@/lib/analytics/progress';
 
 type StatisticsOverviewProps = {
-  hasData: boolean;
+  report: ProgressReport;
 };
 
 const statistics = [
@@ -36,8 +37,10 @@ const statistics = [
 ];
 
 export function StatisticsOverview({
-  hasData,
+  report,
 }: StatisticsOverviewProps) {
+  const hasData = report.profileCount > 0;
+  const values = [report.activity.totalEvents, report.activity.activeDays, report.activity.totalDays ? Math.round((report.activity.activeDays / report.activity.totalDays) * 100) : 0, report.snapshotCount];
   return (
     <section>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -78,7 +81,7 @@ export function StatisticsOverview({
 
               <CardContent>
                 <div className="text-2xl font-bold tracking-tight">
-                  —
+                  {values[statistics.indexOf(stat)].toLocaleString()}{statistics.indexOf(stat) === 2 ? '%' : ''}
                 </div>
 
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">

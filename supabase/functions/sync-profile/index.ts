@@ -87,11 +87,12 @@ Deno.serve(async (req) => {
   const totalActivity = profile.activity.reduce((s, a) => s + a.count, 0);
   if (totalActivity) metrics.activity_total = totalActivity;
 
-  await supabase.from("profile_snapshots").insert({
+  const { error: snapshotError } = await supabase.from("profile_snapshots").insert({
     profile_id: saved.id,
     user_id: userId,
     metrics,
   });
+  if (snapshotError) return json({ error: snapshotError.message }, 400);
 
   return json({ profile: saved });
 });

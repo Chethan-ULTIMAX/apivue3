@@ -1,6 +1,7 @@
 import type {
   IntegrationStatus,
 } from './types';
+import { supabase } from '@/integrations/supabase/client';
 
 const API_BASE =
   import.meta.env.VITE_API_URL ??
@@ -10,6 +11,7 @@ async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const { data: { session } } = await supabase.auth.getSession();
   const response = await fetch(
     `${API_BASE}${path}`,
     {
@@ -17,6 +19,7 @@ async function request<T>(
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         ...(options?.headers ?? {}),
       },
     }
@@ -50,8 +53,9 @@ export function getIntegrationStatus() {
 }
 
 export function connectGitHub() {
-  window.location.href =
-    `${API_BASE}/api/integrations/github/connect`;
+  return request<{ url: string }>('/api/integrations/github/connect').then(({ url }) => {
+    window.location.href = url;
+  });
 }
 
 export async function disconnectGitHub() {
@@ -60,6 +64,13 @@ export async function disconnectGitHub() {
     {
       method: 'POST',
     }
+  );
+}
+
+export async function syncGitHub() {
+  return request<{ syncedAt: string; username: string }>(
+    '/api/integrations/github/sync',
+    { method: 'POST' },
   );
 }
 

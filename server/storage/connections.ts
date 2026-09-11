@@ -9,6 +9,10 @@ export interface GitHubConnection {
   connectedAt: string;
 }
 
+export interface ServerGitHubConnection extends GitHubConnection {
+  userId: string;
+}
+
 export interface CodeforcesConnection {
   provider: 'codeforces';
   handle: string;
@@ -20,7 +24,7 @@ export interface CodeforcesConnection {
 
 const githubConnections = new Map<
   string,
-  GitHubConnection
+  ServerGitHubConnection
 >();
 
 const codeforcesConnections = new Map<
@@ -30,14 +34,14 @@ const codeforcesConnections = new Map<
 
 export function saveGitHubConnection(
   sessionId: string,
-  connection: GitHubConnection
+  connection: ServerGitHubConnection
 ) {
   githubConnections.set(sessionId, connection);
 }
 
 export function getGitHubConnection(
   sessionId: string
-): GitHubConnection | null {
+): ServerGitHubConnection | null {
   return githubConnections.get(sessionId) ?? null;
 }
 

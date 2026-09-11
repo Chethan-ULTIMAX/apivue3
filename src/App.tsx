@@ -1,8 +1,4 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import {
   QueryClient,
@@ -24,7 +20,7 @@ import { ProgressView } from '@/features/progress/ProgressView';
 import { ExploreView } from '@/features/explore/ExploreView';
 import { CompareView } from '@/features/compare/CompareView';
 
-import { AnalyticsOverview } from '@/features/analyze/components/AnalyticsOverview';
+import { AnalyzeView } from '@/features/analyze/AnalyzeView';
 
 import { IntegrationsView } from '@/features/integrations/IntegrationsView';
 import { AIInsightsView } from '@/features/ai-insights/AIInsightsView';
@@ -47,7 +43,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL === '/apivue3/' ? '/apivue3' : undefined}>
             <Routes>
 
               {/* =================================================
@@ -73,6 +69,8 @@ function App() {
                 path="/forgot-password"
                 element={<ForgotPasswordPage />}
               />
+
+              <Route path="/reset-password" element={<ForgotPasswordPage />} />
 
               <Route
                 path="/oauth-consent"
@@ -128,9 +126,7 @@ function App() {
                   {/* Analytics */}
                   <Route
                     path="analytics"
-                    element={
-                      <AnalyticsOverview hasData={false} />
-                    }
+                    element={<AnalyzeView />}
                   />
 
                   {/* Integrations */}

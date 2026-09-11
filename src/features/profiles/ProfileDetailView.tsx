@@ -32,7 +32,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 
 export function ProfileDetailView() {
-  const { profileId } = useParams<{ profileId: string }>();
+  const { id: profileId } = useParams<{ id: string }>();
   const { data: profiles = [], isLoading } = useTrackedProfiles();
   const { data: snapshots = [] } = useProfileSnapshots(profileId);
   const sync = useSyncProfile();

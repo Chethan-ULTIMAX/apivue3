@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
-import { Github, Code2 } from "lucide-react";
+import { Github, Code2, MessageSquareCode, Swords } from "lucide-react";
 
-export type IntegrationId = "github" | "codeforces";
+export type IntegrationId = "github" | "leetcode" | "codeforces" | "codewars" | "stackoverflow";
 
 export type CategoryId =
   | "development"
@@ -205,6 +205,51 @@ export const integrations: IntegrationDefinition[] = [
       { key: "maxRating", label: "Max Rating" },
       { key: "rank", label: "Rank" },
     ],
+  },
+  {
+    id: "leetcode",
+    name: "LeetCode",
+    description: "Solved problems, difficulty distribution, contests and activity.",
+    category: "Competitive Programming",
+    categories: ["competitive-programming", "learning", "activity"],
+    available: true,
+    authType: "username",
+    icon: Code2,
+    accent: "#f59e0b",
+    handleLabel: "LeetCode username",
+    handlePlaceholder: "neetcode",
+    handleHint: "Enter a public LeetCode username.",
+    headlineMetrics: ["solved_all", "contest_rating"],
+  },
+  {
+    id: "codewars",
+    name: "Codewars",
+    description: "Honor, kata completions and language scores.",
+    category: "Learning",
+    categories: ["competitive-programming", "learning"],
+    available: true,
+    authType: "username",
+    icon: Swords,
+    accent: "#ef4444",
+    handleLabel: "Codewars username",
+    handlePlaceholder: "someuser",
+    handleHint: "Enter a public Codewars username.",
+    headlineMetrics: ["honor", "total_completed"],
+  },
+  {
+    id: "stackoverflow",
+    name: "Stack Overflow",
+    description: "Reputation, answers and community activity.",
+    category: "Community",
+    categories: ["development", "activity"],
+    available: true,
+    authType: "username",
+    icon: MessageSquareCode,
+    accent: "#f97316",
+    handleLabel: "Stack Overflow user ID",
+    handlePlaceholder: "22656",
+    handleHint: "Enter the numeric Stack Exchange user ID.",
+    headlineMetrics: ["reputation", "answers", "gold"],
   },
 ];
 

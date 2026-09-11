@@ -27,6 +27,7 @@ const pendingStates = new Map<
   string,
   {
     sessionId: string;
+    userId: string;
     codeVerifier: string;
     createdAt: number;
   }
@@ -56,7 +57,8 @@ async function createPkceChallenge(
 }
 
 export async function createGitHubAuthorizationUrl(
-  sessionId: string
+  sessionId: string,
+  userId: string
 ) {
   const state = base64Url(
     crypto.randomBytes(32)
@@ -68,6 +70,7 @@ export async function createGitHubAuthorizationUrl(
 
   pendingStates.set(state, {
     sessionId,
+    userId,
     codeVerifier,
     createdAt: Date.now(),
   });

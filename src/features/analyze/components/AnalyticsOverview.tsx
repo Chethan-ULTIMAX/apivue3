@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
+import type { ProgressReport } from '@/lib/analytics/progress';
 
 type AnalyticsOverviewProps = {
-  hasData: boolean;
+  report: ProgressReport;
 };
 
 const metrics = [
@@ -36,8 +37,9 @@ const metrics = [
 ];
 
 export function AnalyticsOverview({
-  hasData,
+  report,
 }: AnalyticsOverviewProps) {
+  const hasData = report.profileCount > 0;
   return (
     <section>
       <div className="mb-4">
@@ -81,9 +83,7 @@ export function AnalyticsOverview({
                 </p>
 
                 <div className="mt-4 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-                  {hasData
-                    ? 'Waiting for analytics data'
-                    : 'Connect data to unlock'}
+                  {metric.title === 'Data sources' ? `${report.profileCount} connected` : metric.title === 'History' ? `${report.snapshotCount} snapshots` : hasData ? 'Calculated from stored data' : 'Connect data to unlock'}
                 </div>
               </CardContent>
             </Card>

@@ -21,4 +21,7 @@ export const env = {
   githubClientId: required('GITHUB_CLIENT_ID'),
   githubClientSecret: required('GITHUB_CLIENT_SECRET'),
   githubCallbackUrl: required('GITHUB_CALLBACK_URL'),
+  supabaseUrl: required('SUPABASE_URL'),
+  supabasePublishableKey: required('SUPABASE_PUBLISHABLE_KEY'),
+  supabaseServiceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
 };

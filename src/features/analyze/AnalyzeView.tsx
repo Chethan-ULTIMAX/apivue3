@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useTrackedProfiles } from '@/hooks/use-profiles';
+import { useProfileSnapshots, useTrackedProfiles } from '@/hooks/use-profiles';
+import { buildProgressReport } from '@/lib/analytics/progress';
 
 import {
   Activity,
@@ -31,13 +32,15 @@ export function AnalyzeView() {
     isLoading,
     refetch,
   } = useTrackedProfiles();
+  const { data: snapshots = [], isLoading: snapshotsLoading } = useProfileSnapshots();
 
   const connectedProfiles = useMemo(() => {
     if (!Array.isArray(profiles)) return [];
     return profiles;
   }, [profiles]);
 
-  const hasConnectedData = connectedProfiles.length > 0;
+  const report = useMemo(() => buildProgressReport(connectedProfiles, snapshots), [connectedProfiles, snapshots]);
+  const hasConnectedData = report.profileCount > 0;
 
   const today = new Date().toLocaleDateString('en-US', {
     month: 'short',
@@ -45,7 +48,7 @@ export function AnalyzeView() {
     year: 'numeric',
   });
 
-  if (isLoading) {
+  if (isLoading || snapshotsLoading) {
     return (
       <div className="min-h-full p-5 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-7xl space-y-6">
@@ -142,14 +145,14 @@ export function AnalyzeView() {
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-3">
-                    <Link to="/integrations">
+                    <Link to="/dashboard/integrations">
                       <Button className="gap-2 bg-white text-black hover:bg-zinc-200">
                         Connect a platform
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
 
-                    <Link to="/explore">
+                    <Link to="/dashboard/explore">
                       <Button
                         variant="outline"
                         className="gap-2 border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
@@ -222,15 +225,15 @@ export function AnalyzeView() {
         )}
 
         {/* Analytics overview */}
-        <AnalyticsOverview hasData={hasConnectedData} />
+        <AnalyticsOverview report={report} />
 
         {/* Statistics */}
-        <StatisticsOverview hasData={hasConnectedData} />
+        <StatisticsOverview report={report} />
 
         {/* Activity + progress */}
         <div className="grid gap-5 lg:grid-cols-2">
-          <ActivityAnalytics hasData={hasConnectedData} />
-          <ProgressAnalytics hasData={hasConnectedData} />
+          <ActivityAnalytics report={report} />
+          <ProgressAnalytics report={report} />
         </div>
 
         {/* Trends */}

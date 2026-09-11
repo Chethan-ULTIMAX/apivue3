@@ -8,14 +8,16 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import type { ProgressReport } from '@/lib/analytics/progress';
 
 type ProgressAnalyticsProps = {
-  hasData: boolean;
+  report: ProgressReport;
 };
 
 export function ProgressAnalytics({
-  hasData,
+  report,
 }: ProgressAnalyticsProps) {
+  const hasData = report.profileCount > 0;
   return (
     <Card className="border-border/70 bg-card/50">
       <CardHeader className="border-b border-border/50">
@@ -49,25 +51,25 @@ export function ProgressAnalytics({
             <ProgressItem
               icon={Target}
               title="Progress by area"
-              description="Development, DSA, security, learning and projects can be analyzed independently."
+              description={`${report.categoryProgress.length} progress area${report.categoryProgress.length === 1 ? '' : 's'} represented by your connected profiles.`}
             />
 
             <ProgressItem
               icon={ArrowUpRight}
               title="Change over time"
-              description="APIVue will compare current periods against your actual historical data."
+              description={`${report.trends.length} metric trend${report.trends.length === 1 ? '' : 's'} calculated from stored snapshots.`}
             />
 
             <ProgressItem
               icon={Goal}
               title="Goal progress"
-              description="Connected activity can eventually contribute automatically to your goals."
+              description={report.observations.length ? `${report.observations.length} deterministic observation${report.observations.length === 1 ? '' : 's'} available for guidance.` : 'More history is needed for meaningful observations.'}
             />
 
             <ProgressItem
               icon={CheckCircle2}
               title="Milestones"
-              description="Important progress events can be identified from real activity."
+              description={report.snapshotCount > 1 ? `History spans ${report.historyDays} day${report.historyDays === 1 ? '' : 's'}.` : 'Collect another snapshot to identify milestones.'}
             />
           </div>
         )}

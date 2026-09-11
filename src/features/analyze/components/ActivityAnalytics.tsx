@@ -7,14 +7,16 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import type { ProgressReport } from '@/lib/analytics/progress';
 
 type ActivityAnalyticsProps = {
-  hasData: boolean;
+  report: ProgressReport;
 };
 
 export function ActivityAnalytics({
-  hasData,
+  report,
 }: ActivityAnalyticsProps) {
+  const hasData = report.profileCount > 0;
   return (
     <Card className="border-border/70 bg-card/50">
       <CardHeader className="border-b border-border/50">
@@ -48,19 +50,19 @@ export function ActivityAnalytics({
             <AnalyticsPlaceholder
               icon={CalendarDays}
               title="Daily activity"
-              description="Daily activity statistics will appear here once real activity snapshots are available."
+              description={`${report.activity.activeDays} active days across ${report.activity.totalDays} recorded days.`}
             />
 
             <AnalyticsPlaceholder
               icon={Layers3}
               title="Activity distribution"
-              description="APIVue will organize activity across your connected areas."
+              description={`${report.activity.totalEvents.toLocaleString()} total events, with ${report.activity.last7.toLocaleString()} in the latest seven recorded days.`}
             />
 
             <AnalyticsPlaceholder
               icon={Clock3}
               title="Activity patterns"
-              description="Patterns such as active days and consistency require historical data."
+              description={`Current streak: ${report.activity.currentStreak} days. Longest streak: ${report.activity.longestStreak} days.`}
             />
           </div>
         )}

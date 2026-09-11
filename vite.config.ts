@@ -5,8 +5,8 @@ import { componentTagger } from "lovable-tagger";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  base: "/apivue3/",
+export default defineConfig(({ mode, command }) => ({
+  base: command === "build" ? "/apivue3/" : "/",
 
   server: {
     host: "::",
