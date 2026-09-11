@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { env } from './env';
 import { ensureSession } from './middleware/session';
 import integrationsRouter from './routes/integrations';
+import activityRouter from './routes/activity';
 
 const app = express();
 
@@ -31,6 +32,8 @@ app.use(
   '/api/integrations',
   integrationsRouter
 );
+
+app.use('/api/activity', activityRouter);
 
 app.listen(env.port, () => {
   console.log(

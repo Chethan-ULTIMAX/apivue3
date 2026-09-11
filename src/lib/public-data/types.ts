@@ -1,4 +1,4 @@
-export type PublicPlatform = 'github' | 'codeforces';
+export type PublicPlatform = 'github' | 'codeforces' | 'leetcode' | 'codewars' | 'stackoverflow';
 
 export interface PublicProfile {
   platform: PublicPlatform;

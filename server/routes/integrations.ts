@@ -16,6 +16,18 @@ import {
 } from '../integrations/codeforces';
 
 import {
+  getLeetCodeUserProfile,
+} from '../integrations/leetcode';
+
+import {
+  getCodewarsUserProfile,
+} from '../integrations/codewars';
+
+import {
+  getStackOverflowUserProfile,
+} from '../integrations/stackoverflow';
+
+import {
   getSessionId,
   requireSupabaseUser,
 } from '../middleware/session';
@@ -430,5 +442,232 @@ router.post(
     });
   }
 );
+
+/**
+ * POST /api/integrations/leetcode/connect
+ * LeetCode connection verifies the supplied public handle.
+ */
+router.post(
+  '/leetcode/connect',
+  async (req, res) => {
+    const sessionId = requireSession(req, res);
+
+    if (!sessionId) {
+      return;
+    }
+
+    const handle =
+      typeof req.body?.handle === 'string'
+        ? req.body.handle.trim()
+        : '';
+
+    if (!handle) {
+      res.status(400).json({
+        error:
+          'LeetCode handle is required.',
+      });
+
+      return;
+    }
+
+    try {
+      const profile = await getLeetCodeUserProfile(handle);
+
+      res.json({
+        success: true,
+        profile,
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(400).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unable to connect LeetCode.',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/integrations/codewars/connect
+ * Codewars connection verifies the supplied public handle.
+ */
+router.post(
+  '/codewars/connect',
+  async (req, res) => {
+    const sessionId = requireSession(req, res);
+
+    if (!sessionId) {
+      return;
+    }
+
+    const handle =
+      typeof req.body?.handle === 'string'
+        ? req.body.handle.trim()
+        : '';
+
+    if (!handle) {
+      res.status(400).json({
+        error:
+          'Codewars handle is required.',
+      });
+
+      return;
+    }
+
+    try {
+      const profile = await getCodewarsUserProfile(handle);
+
+      res.json({
+        success: true,
+        profile,
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(400).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unable to connect Codewars.',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/integrations/stackoverflow/connect
+ * StackOverflow connection verifies the supplied numeric user ID.
+ */
+router.post(
+  '/stackoverflow/connect',
+  async (req, res) => {
+    const sessionId = requireSession(req, res);
+
+    if (!sessionId) {
+      return;
+    }
+
+    const handle =
+      typeof req.body?.handle === 'string'
+        ? req.body.handle.trim()
+        : '';
+
+    if (!handle) {
+      res.status(400).json({
+        error:
+          'Stack Overflow user ID is required.',
+      });
+
+      return;
+    }
+
+    try {
+      const profile = await getStackOverflowUserProfile(handle);
+
+      res.json({
+        success: true,
+        profile,
+      });
+    } catch (error) {
+      console.error(error);
+
+      res.status(400).json({
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unable to connect Stack Overflow.',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/integrations/stackoverflow/disconnect
+ */
+router.post(
+  '/stackoverflow/disconnect',
+  (req, res) => {
+    const sessionId = requireSession(req, res);
+
+    if (!sessionId) {
+      return;
+    }
+
+    res.json({
+      success: true,
+    });
+  }
+);
+
+/**
+ * POST /api/integrations/codewars/disconnect
+ */
+router.post(
+  '/codewars/disconnect',
+  (req, res) => {
+    const sessionId = requireSession(req, res);
+
+    if (!sessionId) {
+      return;
+    }
+
+    res.json({
+      success: true,
+    });
+  }
+);
+
+/**
+ * POST /api/integrations/leetcode/disconnect
+ */
+router.post(
+  '/leetcode/disconnect',
+  (req, res) => {
+    const sessionId = requireSession(req, res);
+
+    if (!sessionId) {
+      return;
+    }
+
+    res.json({
+      success: true,
+    });
+  }
+);
+
+/**
+ * GET /api/integrations/status
+ * Returns connection status for all platforms
+ */
+router.get('/status', async (req, res) => {
+  const user = await requireSupabaseUser(req, res);
+  if (!user) return;
+
+  const { data: connectedAccounts } = await supabaseAdmin
+    .from('connected_accounts')
+    .select('provider, username, display_name, avatar_url, profile_url, connected_at, last_synced_at')
+    .eq('user_id', user.id);
+
+  const status = {
+    github: connectedAccounts?.filter((acc: any) => acc.provider === 'github')[0] ?? null,
+    codeforces: connectedAccounts?.filter((acc: any) => acc.provider === 'codeforces')[0] ?? null,
+    leetcode: connectedAccounts?.filter((acc: any) => acc.provider === 'leetcode')[0] ?? null,
+    codewars: connectedAccounts?.filter((acc: any) => acc.provider === 'codewars')[0] ?? null,
+    stackoverflow: connectedAccounts?.filter((acc: any) => acc.provider === 'stackoverflow')[0] ?? null,
+  };
+
+  res.json({
+    connected: Object.fromEntries(
+      Object.entries(status).map(([key, value]) => [
+        key,
+        value !== null,
+      ])
+    ),
+    accounts: status,
+  });
+});
 
 export default router;

@@ -96,3 +96,60 @@ export async function disconnectCodeforces() {
     }
   );
 }
+
+export async function connectLeetCode(handle: string) {
+  return request(
+    '/api/integrations/leetcode/connect',
+    {
+      method: 'POST',
+      body: JSON.stringify({ handle }),
+    }
+  );
+}
+
+export async function disconnectLeetCode() {
+  return request(
+    '/api/integrations/leetcode/disconnect',
+    {
+      method: 'POST',
+    }
+  );
+}
+
+export async function connectCodewars(handle: string) {
+  return request(
+    '/api/integrations/codewars/connect',
+    {
+      method: 'POST',
+      body: JSON.stringify({ handle }),
+    }
+  );
+}
+
+export async function disconnectCodewars() {
+  return request(
+    '/api/integrations/codewars/disconnect',
+    {
+      method: 'POST',
+    }
+  );
+}
+
+export async function connectStackOverflow(handle: string) {
+  return request(
+    '/api/integrations/stackoverflow/connect',
+    {
+      method: 'POST',
+      body: JSON.stringify({ handle }),
+    }
+  );
+}
+
+export async function disconnectStackOverflow() {
+  return request(
+    '/api/integrations/stackoverflow/disconnect',
+    {
+      method: 'POST',
+    }
+  );
+}
