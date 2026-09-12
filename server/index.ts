@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { env } from './env';
 import { ensureSession } from './middleware/session';
 import integrationsRouter from './routes/integrations';
+import providerSyncRouter from './routes/provider-sync';
 import activityRouter from './routes/activity';
 
 const app = express();
@@ -15,15 +16,6 @@ const app = express();
 
 app.disable('x-powered-by');
 
-/**
- * Trust the first hop's proxy headers (X-Forwarded-For,
- * X-Forwarded-Proto).
- *
- * Codespaces, Vercel, Render, Railway, Fly, nginx, etc. all put
- * the app behind a proxy. Without this, `req.protocol` reports
- * "http" even on HTTPS, `req.ip` reports the proxy IP, and any
- * `Secure` cookie logic misbehaves.
- */
 app.set('trust proxy', 1);
 
 /* ============================================================
@@ -37,12 +29,6 @@ const LOCAL_ORIGINS = new Set([
   'http://127.0.0.1:5173',
 ]);
 
-/**
- * GitHub Codespaces uses `<name>-<port>.app.github.dev`.
- * `github.dev` (no subdomain) is the lightweight web editor.
- * `.githubpreview.dev` is the deprecated legacy domain, kept for
- * compatibility with older sandboxes.
- */
 function isCodespacesOrigin(origin: string): boolean {
   return (
     origin.endsWith('.app.github.dev') ||
@@ -61,11 +47,8 @@ function isOriginAllowed(origin: string): boolean {
 app.use(
   cors({
     origin: (origin, callback) => {
-      // No Origin header = same-origin, curl, health probe, etc.
       if (!origin) return callback(null, true);
-
       if (isOriginAllowed(origin)) return callback(null, true);
-
       console.warn(`[cors] Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     },
@@ -91,9 +74,6 @@ app.use(cookieParser());
 
 /* ============================================================
  * Health check
- *
- * Declared BEFORE auth middleware so monitoring systems and load
- * balancers can probe it without credentials.
  * ============================================================ */
 
 app.get('/api/health', (_req, res) => {
@@ -107,8 +87,6 @@ app.get('/api/health', (_req, res) => {
 
 /* ============================================================
  * Authentication
- *
- * Scoped to /api so the health check above bypasses it.
  * ============================================================ */
 
 app.use('/api', ensureSession);
@@ -118,13 +96,11 @@ app.use('/api', ensureSession);
  * ============================================================ */
 
 app.use('/api/integrations', integrationsRouter);
+app.use('/api/integrations', providerSyncRouter);
 app.use('/api/activity', activityRouter);
 
 /* ============================================================
  * 404 for unknown /api/* routes
- *
- * Using `app.use('/api', …)` (no wildcard) works on both Express 4
- * and Express 5, whereas `'/api/*'` behaves differently on 5.
  * ============================================================ */
 
 app.use('/api', (_req, res) => {
@@ -149,7 +125,6 @@ app.use(
 
     console.error('[apivue] Unhandled server error:', error);
 
-    // Do not leak internal messages to production clients.
     res.status(500).json({
       ok: false,
       error: env.isProduction
@@ -190,7 +165,6 @@ function shutdown(signal: string): void {
     process.exit(0);
   });
 
-  // Force-exit if graceful close takes longer than 10s.
   setTimeout(() => {
     console.error('[apivue] Forced exit after 10s.');
     process.exit(1);
