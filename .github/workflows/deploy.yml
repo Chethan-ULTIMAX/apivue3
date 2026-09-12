@@ -34,8 +34,8 @@ jobs:
 
       - name: Build APIVue
         env:
-          VITE_SUPABASE_URL: https://example.supabase.co
-          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
+          VITE_SUPABASE_URL: https://ehabrjqrfhgwdlmbcwho.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_7Xrz670taHQak6WmDMiPrg_VqFH86Ys
         run: npm run build
 
       # GitHub Pages serves 404.html for deep links. Copying the SPA entry
