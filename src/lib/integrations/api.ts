@@ -2,8 +2,9 @@
  * Browser integration client.
  *
  * Public profiles use the authenticated Supabase sync-profile Edge Function.
- * GitHub additionally supports OAuth so APIVue can request permission for
- * private repositories and sync that data through a protected Edge Function.
+ * GitHub uses a GitHub App installation + OAuth flow. The authorization code
+ * and GitHub access token are handled server-side by Supabase; the browser
+ * never receives or stores the GitHub token.
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +12,6 @@ import type { IntegrationId, IntegrationStatus } from './types';
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const API_BASE = (configuredApiUrl || '').replace(/\/+$/, '');
-const GITHUB_OAUTH_PENDING_KEY = 'apivue.github.oauth.pending';
 
 type SyncProfile = {
   id?: string;
@@ -68,43 +68,6 @@ async function syncPublicProfile(platform: IntegrationId, handle: string): Promi
   return payload.profile;
 }
 
-export async function syncGitHubPrivate(providerToken: string): Promise<{ login: string; privateRepoCount: number; accessibleRepoCount: number }> {
-  const { data, error } = await supabase.functions.invoke('sync-github-private', {
-    body: { providerToken },
-  });
-  if (error) {
-    let message = error.message;
-    const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
-    if (context?.json) {
-      try {
-        const body = await context.json() as { error?: string };
-        if (body?.error) message = body.error;
-      } catch { /* keep default */ }
-    }
-    throw new Error(message);
-  }
-  const payload = data as { error?: string; login?: string; privateRepoCount?: number; accessibleRepoCount?: number };
-  if (payload.error) throw new Error(payload.error);
-  if (!payload.login) throw new Error('GitHub authorization returned no account.');
-  return {
-    login: payload.login,
-    privateRepoCount: payload.privateRepoCount ?? 0,
-    accessibleRepoCount: payload.accessibleRepoCount ?? 0,
-  };
-}
-
-export async function processGitHubOAuthSession(): Promise<void> {
-  if (typeof window === 'undefined') return;
-  if (window.localStorage.getItem(GITHUB_OAUTH_PENDING_KEY) !== '1') return;
-
-  const { data: { session } } = await supabase.auth.getSession();
-  const providerToken = session?.provider_token;
-  if (!providerToken) return;
-
-  window.localStorage.removeItem(GITHUB_OAUTH_PENDING_KEY);
-  await syncGitHubPrivate(providerToken);
-}
-
 export async function getIntegrationStatus(): Promise<IntegrationStatus> {
   if (API_BASE) {
     try { return await backendRequest<IntegrationStatus>('/api/integrations'); }
@@ -141,22 +104,22 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
 }
 
 export async function connectGitHub(): Promise<void> {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(GITHUB_OAUTH_PENDING_KEY, '1');
-  }
-
-  const { data, error } = await supabase.auth.linkIdentity({
-    provider: 'github',
-    options: {
-      redirectTo: window.location.href,
-      scopes: 'repo gist notifications',
-    },
-  });
+  const { data, error } = await supabase.functions.invoke('github-oauth-init', { body: {} });
   if (error) {
-    if (typeof window !== 'undefined') window.localStorage.removeItem(GITHUB_OAUTH_PENDING_KEY);
-    throw error;
+    let message = error.message;
+    const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
+    if (context?.json) {
+      try {
+        const body = await context.json() as { error?: string };
+        if (body?.error) message = body.error;
+      } catch { /* keep default */ }
+    }
+    throw new Error(message);
   }
-  if (data?.url) window.location.assign(data.url);
+  const payload = data as { error?: string; url?: string };
+  if (payload.error) throw new Error(payload.error);
+  if (!payload.url) throw new Error('GitHub authorization URL was not returned.');
+  window.location.assign(payload.url);
 }
 
 async function disconnectPublicProfile(provider: IntegrationId): Promise<void> {
