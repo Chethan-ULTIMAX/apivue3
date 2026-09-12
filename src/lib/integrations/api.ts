@@ -10,7 +10,7 @@ const OWNERSHIP_CHALLENGE_KEY = 'apivue.ownership.challenge';
 
 type SyncProfile = { id?: string; platform: string; handle: string; displayName?: string | null; avatarUrl?: string | null; profileUrl?: string | null; lastSyncedAt?: string; last_synced_at?: string };
 type GitHubPrivateSync = { syncedAt: string; username: string; privateAccess: boolean; accessibleRepoCount: number; privateRepoCount: number };
-export type OwnershipChallenge = { code: string; platform: 'leetcode' | 'codewars'; handle: string; expiresAt: string; instructions: string };
+export type OwnershipChallenge = { code: string; platform: 'leetcode' | 'codewars'; handle: string; expiresAt: string; instructions: string; verificationMode?: 'profile_summary' | 'webhook'; webhookUrl?: string; challengeId?: string };
 
 async function backendRequest<T>(path: string, options?: RequestInit): Promise<T> {
   if (!API_BASE) throw new Error('The optional APIVue Node backend is not configured.');
@@ -47,10 +47,10 @@ async function startOwnershipVerification(platform: 'leetcode' | 'codewars', han
   if (!clean) throw new Error('A username is required.');
   const { data, error } = await supabase.functions.invoke('start-profile-verification', { body: { platform, handle: clean } });
   if (error) throw new Error(error.message);
-  const result = data as { error?: string } & Partial<OwnershipChallenge>;
+  const result = data as { error?: string; challengeId?: string } & Partial<OwnershipChallenge>;
   if (result.error) throw new Error(result.error);
   if (!result.code || !result.expiresAt || !result.instructions) throw new Error('The verification challenge was incomplete.');
-  const challenge = result as OwnershipChallenge;
+  const challenge = { ...result, challengeId: result.challengeId ?? result.id } as OwnershipChallenge;
   sessionStorage.setItem(OWNERSHIP_CHALLENGE_KEY, JSON.stringify(challenge));
   return challenge;
 }
@@ -66,6 +66,18 @@ export function getOwnershipChallenge(): OwnershipChallenge | null {
 export function clearOwnershipChallenge(): void { sessionStorage.removeItem(OWNERSHIP_CHALLENGE_KEY); }
 
 export async function verifyOwnership(platform: 'leetcode' | 'codewars', handle: string, code: string): Promise<void> {
+  if (platform === 'codewars') {
+    const challenge = getOwnershipChallenge();
+    if (!challenge?.challengeId) throw new Error('The Codewars verification challenge is missing. Start verification again.');
+    const { data, error } = await supabase.functions.invoke('check-profile-ownership', { body: { platform, handle, challengeId: challenge.challengeId } });
+    if (error) throw new Error(error.message);
+    const result = data as { error?: string; verified?: boolean; expired?: boolean };
+    if (result.error) throw new Error(result.error);
+    if (result.expired) throw new Error('The Codewars verification challenge expired. Generate a new one.');
+    if (!result.verified) throw new Error('Codewars has not confirmed the webhook yet. Save the webhook in Codewars and try again.');
+    clearOwnershipChallenge();
+    return;
+  }
   const { data, error } = await supabase.functions.invoke('verify-profile-ownership', { body: { platform, handle, code } });
   if (error) { let message = error.message; const context = (error as { context?: { json?: () => Promise<unknown> } }).context; if (context?.json) { try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ } } throw new Error(message); }
   const result = data as { error?: string; verified?: boolean };
@@ -81,7 +93,7 @@ async function createPkceChallenge(verifier: string): Promise<string> { const di
 export async function completeStackOverflowOAuth(code: string, state: string): Promise<void> {
   const verifier = sessionStorage.getItem(STACKOVERFLOW_PKCE_KEY);
   if (!verifier) throw new Error('Stack Overflow sign-in session is missing. Please start the connection again.');
-  const form = new URLSearchParams({ client_id: STACKOVERFLOW_CLIENT_ID, redirect_uri: STACKOVERFLOW_REDIRECT_URI, code, code_verifier: verifier });
+  const form = new URLSearchParams({ client_id: STACKOVERFLOW_CLIENT_ID, redirect_uri: STACKOVERFLOW_REDIRECT_URI, code, code_verifier: verifier, });
   const response = await fetch('https://stackoverflow.com/oauth/access_token/json', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form.toString() });
   const text = await response.text();
   let payload: { access_token?: string; error?: { type?: string; message?: string }; error_message?: string } = {};
