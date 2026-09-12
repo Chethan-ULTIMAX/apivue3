@@ -31,6 +31,11 @@ export function useTrackedProfiles() {
       if (error) throw new Error(error.message);
       return (data ?? []) as TrackedProfile[];
     },
+    // OAuth callbacks can create/update a profile while this query is cached.
+    // Always re-read when entering the Profiles/Integrations views so connected
+    // provider data cannot remain hidden behind a stale React Query result.
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }
 
