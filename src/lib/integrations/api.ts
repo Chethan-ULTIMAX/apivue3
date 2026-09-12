@@ -26,18 +26,12 @@ type GitHubPrivateSync = {
 async function backendRequest<T>(path: string, options?: RequestInit): Promise<T> {
   if (!API_BASE) throw new Error('The optional APIVue Node backend is not configured.');
   const { data: { session } } = await supabase.auth.getSession();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((options?.headers as Record<string, string> | undefined) ?? {}),
-  };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...((options?.headers as Record<string, string> | undefined) ?? {}) };
   if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
   const response = await fetch(`${API_BASE}${path}`, { ...options, credentials: 'include', headers });
   if (!response.ok) {
     let message = `Request failed with status ${response.status}.`;
-    try {
-      const body = await response.json() as { error?: string; message?: string };
-      message = body.error ?? body.message ?? message;
-    } catch { /* keep default */ }
+    try { const body = await response.json() as { error?: string; message?: string }; message = body.error ?? body.message ?? message; } catch { /* keep default */ }
     throw new Error(message);
   }
   return response.status === 204 ? undefined as T : await response.json() as T;
@@ -50,9 +44,7 @@ async function syncPublicProfile(platform: IntegrationId, handle: string): Promi
   if (error) {
     let message = error.message;
     const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
-    if (context?.json) {
-      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
-    }
+    if (context?.json) { try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ } }
     throw new Error(message);
   }
   const payload = data as { error?: string; profile?: SyncProfile };
@@ -66,9 +58,7 @@ async function invokeOAuth(functionName: string, provider: string): Promise<void
   if (error) {
     let message = error.message;
     const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
-    if (context?.json) {
-      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
-    }
+    if (context?.json) { try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ } }
     throw new Error(message);
   }
   const payload = data as { error?: string; url?: string };
@@ -97,6 +87,7 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
 
 export async function connectGitHub(): Promise<void> { await invokeOAuth('github-oauth-init', 'GitHub'); }
 export async function connectCodeforces(_handle?: string): Promise<void> { await invokeOAuth('codeforces-oauth-init', 'Codeforces'); }
+export async function connectStackOverflow(): Promise<void> { await invokeOAuth('stackoverflow-oauth-init', 'Stack Overflow'); }
 
 async function disconnectPublicProfile(provider: IntegrationId): Promise<void> {
   const { data, error } = await supabase.from('tracked_profiles').select('id').eq('platform', provider).limit(1);
@@ -114,9 +105,7 @@ export async function syncGitHub(): Promise<GitHubPrivateSync> {
   if (error) {
     let message = error.message;
     const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
-    if (context?.json) {
-      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
-    }
+    if (context?.json) { try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ } }
     throw new Error(message);
   }
   const payload = data as Partial<GitHubPrivateSync> & { error?: string };
@@ -138,5 +127,4 @@ export async function connectLeetCode(handle: string): Promise<void> { await syn
 export async function disconnectLeetCode(): Promise<void> { await disconnectPublicProfile('leetcode'); }
 export async function connectCodewars(handle: string): Promise<void> { await syncPublicProfile('codewars', handle); }
 export async function disconnectCodewars(): Promise<void> { await disconnectPublicProfile('codewars'); }
-export async function connectStackOverflow(userId: string): Promise<void> { await syncPublicProfile('stackoverflow', userId); }
 export async function disconnectStackOverflow(): Promise<void> { await disconnectPublicProfile('stackoverflow'); }
