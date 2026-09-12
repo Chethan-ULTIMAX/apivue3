@@ -30,16 +30,16 @@ export const integrations: IntegrationDefinition[] = [
   },
   {
     id: 'codeforces', name: 'Codeforces',
-    description: 'Ratings, contests, submissions and competitive programming activity.',
-    category: 'Competitive Programming', categories: ['competitive-programming', 'activity'], available: true, authType: 'username',
-    icon: Code2, accent: '#f59e0b', handleLabel: 'Codeforces handle', handlePlaceholder: 'tourist', handleHint: 'Enter a public Codeforces handle.',
+    description: 'Ratings, contests, submissions and competitive programming activity via Codeforces OpenID Connect.',
+    category: 'Competitive Programming', categories: ['competitive-programming', 'activity'], available: true, authType: 'oauth',
+    icon: Code2, accent: '#f59e0b', handleLabel: 'Codeforces account', handlePlaceholder: '', handleHint: 'Sign in with Codeforces. APIVue will receive your authorized profile identity and load public statistics.',
     headlineMetrics: ['rating', 'max_rating'], metrics: [{ key: 'rating', label: 'Rating' }, { key: 'max_rating', label: 'Max Rating' }, { key: 'rank', label: 'Rank' }],
   },
   {
     id: 'leetcode', name: 'LeetCode',
-    description: 'Solved problems, difficulty distribution, contests and activity.',
+    description: 'Solved problems, difficulty distribution, contests and activity from a public profile.',
     category: 'Competitive Programming', categories: ['competitive-programming', 'learning', 'activity'], available: true, authType: 'username',
-    icon: Code2, accent: '#f59e0b', handleLabel: 'LeetCode username', handlePlaceholder: 'neetcode', handleHint: 'Enter a public LeetCode username.',
+    icon: Code2, accent: '#f59e0b', handleLabel: 'LeetCode username', handlePlaceholder: 'neetcode', handleHint: 'LeetCode does not currently expose an official third-party OAuth/OIDC flow for APIVue. Track a public profile by username instead.',
     headlineMetrics: ['solved_all', 'contest_rating'],
   },
   {
