@@ -15,34 +15,15 @@ import type {
   TrackedProfile,
 } from '@/lib/integrations/registry';
 
-/**
- * Supabase's generated DB types are not yet checked into the repo, so
- * `.from('tracked_profiles')` cannot resolve against typed tables here.
- * This cast is a temporary bridge — replace it once
- * `supabase gen types typescript` has been run and the generated types
- * are wired into the client.
- */
-const db = supabase as unknown as {
-  from: (table: string) => any;
-};
-
-/* ============================================================
- * Query keys
- * ============================================================ */
-
 export const trackedProfilesKey = ['tracked-profiles'] as const;
 export const profileSnapshotsKey = (profileId?: string) =>
   ['profile-snapshots', profileId ?? 'all'] as const;
-
-/* ============================================================
- * Queries
- * ============================================================ */
 
 export function useTrackedProfiles() {
   return useQuery({
     queryKey: trackedProfilesKey,
     queryFn: async (): Promise<TrackedProfile[]> => {
-      const { data, error } = await db
+      const { data, error } = await supabase
         .from('tracked_profiles')
         .select('*')
         .order('pinned', { ascending: false })
@@ -57,7 +38,7 @@ export function useProfileSnapshots(profileId?: string) {
   return useQuery({
     queryKey: profileSnapshotsKey(profileId),
     queryFn: async (): Promise<ProfileSnapshot[]> => {
-      let query = db
+      let query = supabase
         .from('profile_snapshots')
         .select('*')
         .order('captured_at', { ascending: true });
@@ -69,10 +50,6 @@ export function useProfileSnapshots(profileId?: string) {
   });
 }
 
-/* ============================================================
- * Sync (Edge Function)
- * ============================================================ */
-
 async function callSync(platform: string, handle: string, save = true) {
   const { data, error } = await supabase.functions.invoke('sync-profile', {
     body: { platform, handle, save },
@@ -80,8 +57,7 @@ async function callSync(platform: string, handle: string, save = true) {
 
   if (error) {
     let message = error.message;
-    const ctx = (error as { context?: { json?: () => Promise<unknown> } })
-      .context;
+    const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
     if (ctx?.json) {
       try {
         const body = (await ctx.json()) as { error?: string } | undefined;
@@ -99,10 +75,6 @@ async function callSync(platform: string, handle: string, save = true) {
   return data as { profile: TrackedProfile | NormalizedProfile };
 }
 
-/* ============================================================
- * Mutations
- * ============================================================ */
-
 export function useSyncProfile() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -110,10 +82,7 @@ export function useSyncProfile() {
       callSync(platform, handle, true),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trackedProfilesKey });
-      queryClient.invalidateQueries({
-        queryKey: ['profile-snapshots'],
-        exact: false,
-      });
+      queryClient.invalidateQueries({ queryKey: ['profile-snapshots'], exact: false });
     },
   });
 }
@@ -129,18 +98,12 @@ export function useRemoveProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await db
-        .from('tracked_profiles')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('tracked_profiles').delete().eq('id', id);
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: trackedProfilesKey });
-      queryClient.invalidateQueries({
-        queryKey: ['profile-snapshots'],
-        exact: false,
-      });
+      queryClient.invalidateQueries({ queryKey: ['profile-snapshots'], exact: false });
     },
   });
 }
@@ -149,13 +112,12 @@ export function useTogglePinned() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
-      const { error } = await db
+      const { error } = await supabase
         .from('tracked_profiles')
         .update({ pinned })
         .eq('id', id);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: trackedProfilesKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: trackedProfilesKey }),
   });
 }
