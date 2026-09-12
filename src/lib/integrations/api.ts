@@ -61,6 +61,22 @@ async function syncPublicProfile(platform: IntegrationId, handle: string): Promi
   return payload.profile;
 }
 
+async function invokeOAuth(functionName: string, provider: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke(functionName, { body: {} });
+  if (error) {
+    let message = error.message;
+    const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
+    if (context?.json) {
+      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
+    }
+    throw new Error(message);
+  }
+  const payload = data as { error?: string; url?: string };
+  if (payload.error) throw new Error(payload.error);
+  if (!payload.url) throw new Error(`${provider} authorization URL was not returned.`);
+  window.location.assign(payload.url);
+}
+
 export async function getIntegrationStatus(): Promise<IntegrationStatus> {
   if (API_BASE) {
     try { return await backendRequest<IntegrationStatus>('/api/integrations'); } catch { /* serverless fallback below */ }
@@ -79,21 +95,8 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
   return status;
 }
 
-export async function connectGitHub(): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('github-oauth-init', { body: {} });
-  if (error) {
-    let message = error.message;
-    const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
-    if (context?.json) {
-      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
-    }
-    throw new Error(message);
-  }
-  const payload = data as { error?: string; url?: string };
-  if (payload.error) throw new Error(payload.error);
-  if (!payload.url) throw new Error('GitHub authorization URL was not returned.');
-  window.location.assign(payload.url);
-}
+export async function connectGitHub(): Promise<void> { await invokeOAuth('github-oauth-init', 'GitHub'); }
+export async function connectCodeforces(): Promise<void> { await invokeOAuth('codeforces-oauth-init', 'Codeforces'); }
 
 async function disconnectPublicProfile(provider: IntegrationId): Promise<void> {
   const { data, error } = await supabase.from('tracked_profiles').select('id').eq('platform', provider).limit(1);
@@ -130,7 +133,6 @@ export async function syncIntegration(provider: Exclude<IntegrationId, 'github'>
   return { syncedAt: profile.lastSyncedAt ?? profile.last_synced_at ?? new Date().toISOString(), handle: profile.handle, provider };
 }
 
-export async function connectCodeforces(handle: string): Promise<void> { await syncPublicProfile('codeforces', handle); }
 export async function disconnectCodeforces(): Promise<void> { await disconnectPublicProfile('codeforces'); }
 export async function connectLeetCode(handle: string): Promise<void> { await syncPublicProfile('leetcode', handle); }
 export async function disconnectLeetCode(): Promise<void> { await disconnectPublicProfile('leetcode'); }
