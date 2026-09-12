@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Clipboard, ExternalLink, KeyRound, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Clipboard, ExternalLink, KeyRound, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,40 +14,36 @@ export function OwnershipVerificationView() {
   const { platform } = useParams<{ platform: 'leetcode' | 'codewars' }>();
   const navigate = useNavigate();
   const validPlatform = platform === 'leetcode' || platform === 'codewars' ? platform : null;
-  const [challenge, setChallenge] = useState<OwnershipChallenge | null>(() => getOwnershipChallenge());
-  const [code, setCode] = useState(() => getOwnershipChallenge()?.code ?? '');
+  const initialChallenge = getOwnershipChallenge();
+  const [challenge, setChallenge] = useState<OwnershipChallenge | null>(() => initialChallenge);
+  const [code, setCode] = useState(() => initialChallenge?.code ?? '');
+  const [handle, setHandle] = useState(() => initialChallenge?.handle ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
-
   const remaining = useMemo(() => challenge ? Math.max(0, Math.ceil((new Date(challenge.expiresAt).getTime() - now) / 1000)) : 0, [challenge, now]);
   const remainingText = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
   const name = validPlatform ? names[validPlatform] : 'Platform';
   const profileUrl = validPlatform && challenge ? (validPlatform === 'leetcode' ? `https://leetcode.com/u/${encodeURIComponent(challenge.handle)}/` : `https://www.codewars.com/users/${encodeURIComponent(challenge.handle)}`) : '#';
 
-  const regenerate = async () => {
-    if (!validPlatform || !challenge) return;
+  const generate = async () => {
+    if (!validPlatform || !handle.trim()) return;
     setBusy(true); setError(null);
-    try {
-      await beginOwnershipVerification(validPlatform, challenge.handle);
-    } catch (err) { setError((err as Error).message); setBusy(false); }
+    try { await beginOwnershipVerification(validPlatform, handle.trim()); } catch (err) { setError((err as Error).message); setBusy(false); }
   };
-
+  const regenerate = async () => { if (!validPlatform || !challenge) return; setHandle(challenge.handle); setBusy(true); setError(null); try { await beginOwnershipVerification(validPlatform, challenge.handle); } catch (err) { setError((err as Error).message); setBusy(false); } };
   const verify = async () => {
     if (!validPlatform || !challenge || !code.trim()) return;
     setBusy(true); setError(null);
-    try {
-      await verifyOwnership(validPlatform, challenge.handle, code.trim());
-      toast({ title: `${name} ownership verified`, description: `${challenge.handle} is now connected to your APIVue account.` });
-      navigate('/dashboard/integrations', { replace: true });
-    } catch (err) { setError((err as Error).message); setBusy(false); }
+    try { await verifyOwnership(validPlatform, challenge.handle, code.trim()); toast({ title: `${name} ownership verified`, description: `${challenge.handle} is now connected to your APIVue account.` }); navigate('/dashboard/integrations', { replace: true }); }
+    catch (err) { setError((err as Error).message); setBusy(false); }
   };
 
   if (!validPlatform) return <div className="mx-auto max-w-2xl p-6"><Card><CardContent className="p-6"><p className="font-semibold">Unsupported verification platform.</p><Link to="/dashboard/integrations" className="mt-3 inline-block text-sm text-primary">Back to integrations</Link></CardContent></Card></div>;
 
-  if (!challenge) return <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6"><Link to="/dashboard/integrations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to integrations</Link><Card><CardHeader><CardTitle>Start {name} ownership verification</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Generate a unique one-time code, place it on your public {name} profile, and APIVue will verify that you control that profile.</p><Button className="mt-4" onClick={() => { void (async () => { setBusy(true); try { await beginOwnershipVerification(validPlatform, ''); } catch (err) { setError((err as Error).message); setBusy(false); } })(); }} disabled={busy}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Generate code</Button>{error && <p className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card></div>;
+  if (!challenge) return <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6"><Link to="/dashboard/integrations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to integrations</Link><Card><CardHeader><CardTitle>Start {name} ownership verification</CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">Generate a unique one-time code, place it on your public {name} profile, and APIVue will verify that you control that profile.</p><div className="mt-4 flex flex-col gap-2 sm:flex-row"><Input value={handle} onChange={(event) => setHandle(event.target.value)} placeholder={`${name} username`} disabled={busy} autoComplete="off" spellCheck={false} /><Button onClick={() => void generate()} disabled={busy || !handle.trim()}>{busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Generate code</Button></div>{error && <p className="mt-3 text-sm text-destructive">{error}</p>}</CardContent></Card></div>;
 
   return <div className="mx-auto max-w-2xl space-y-4 p-4 sm:p-6">
     <Link to="/dashboard/integrations" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back to integrations</Link>
