@@ -15,6 +15,14 @@ type SyncProfile = {
   last_synced_at?: string;
 };
 
+type GitHubPrivateSync = {
+  syncedAt: string;
+  username: string;
+  privateAccess: boolean;
+  accessibleRepoCount: number;
+  privateRepoCount: number;
+};
+
 async function backendRequest<T>(path: string, options?: RequestInit): Promise<T> {
   if (!API_BASE) throw new Error('The optional APIVue Node backend is not configured.');
   const { data: { session } } = await supabase.auth.getSession();
@@ -38,18 +46,12 @@ async function backendRequest<T>(path: string, options?: RequestInit): Promise<T
 async function syncPublicProfile(platform: IntegrationId, handle: string): Promise<SyncProfile> {
   const clean = handle.trim().replace(/^@/, '');
   if (!clean) throw new Error('A username or platform handle is required.');
-
-  const { data, error } = await supabase.functions.invoke('sync-profile', {
-    body: { platform, handle: clean, save: true },
-  });
+  const { data, error } = await supabase.functions.invoke('sync-profile', { body: { platform, handle: clean, save: true } });
   if (error) {
     let message = error.message;
     const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
     if (context?.json) {
-      try {
-        const body = await context.json() as { error?: string };
-        if (body?.error) message = body.error;
-      } catch { /* keep default */ }
+      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
     }
     throw new Error(message);
   }
@@ -61,44 +63,18 @@ async function syncPublicProfile(platform: IntegrationId, handle: string): Promi
 
 export async function getIntegrationStatus(): Promise<IntegrationStatus> {
   if (API_BASE) {
-    try { return await backendRequest<IntegrationStatus>('/api/integrations'); }
-    catch { /* serverless fallback below */ }
+    try { return await backendRequest<IntegrationStatus>('/api/integrations'); } catch { /* serverless fallback below */ }
   }
-
-  const { data, error } = await supabase
-    .from('tracked_profiles')
-    .select('platform,handle,display_name,avatar_url,profile_url,last_synced_at,data')
-    .order('last_synced_at', { ascending: false });
+  const { data, error } = await supabase.from('tracked_profiles').select('platform,handle,display_name,avatar_url,profile_url,last_synced_at,data').order('last_synced_at', { ascending: false });
   if (error) throw new Error(error.message);
-
-  const status: IntegrationStatus = {
-    github: { connected: false },
-    codeforces: { connected: false },
-    leetcode: { connected: false },
-    codewars: { connected: false },
-    stackoverflow: { connected: false },
-  };
+  const status: IntegrationStatus = { github: { connected: false }, codeforces: { connected: false }, leetcode: { connected: false }, codewars: { connected: false }, stackoverflow: { connected: false } };
   for (const row of data ?? []) {
     const id = row.platform as IntegrationId;
     if (!(id in status) || status[id].connected) continue;
     const payload = row.data as Record<string, unknown> | null;
     const privateAccess = payload?.privateAccess === true || payload?.private_access === true;
-    const repoCount = typeof payload?.accessibleRepoCount === 'number'
-      ? payload.accessibleRepoCount
-      : typeof payload?.accessible_repo_count === 'number'
-        ? payload.accessible_repo_count
-        : undefined;
-    status[id] = {
-      connected: true,
-      username: row.handle,
-      handle: row.handle,
-      displayName: row.display_name,
-      avatarUrl: row.avatar_url,
-      profileUrl: row.profile_url ?? undefined,
-      lastSyncedAt: row.last_synced_at ?? undefined,
-      privateAccess,
-      accessibleRepoCount: repoCount,
-    };
+    const repoCount = typeof payload?.accessibleRepoCount === 'number' ? payload.accessibleRepoCount : typeof payload?.accessible_repo_count === 'number' ? payload.accessible_repo_count : undefined;
+    status[id] = { connected: true, username: row.handle, handle: row.handle, displayName: row.display_name, avatarUrl: row.avatar_url, profileUrl: row.profile_url ?? undefined, lastSyncedAt: row.last_synced_at ?? undefined, privateAccess, accessibleRepoCount: repoCount };
   }
   return status;
 }
@@ -109,10 +85,7 @@ export async function connectGitHub(): Promise<void> {
     let message = error.message;
     const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
     if (context?.json) {
-      try {
-        const body = await context.json() as { error?: string };
-        if (body?.error) message = body.error;
-      } catch { /* keep default */ }
+      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
     }
     throw new Error(message);
   }
@@ -133,12 +106,20 @@ async function disconnectPublicProfile(provider: IntegrationId): Promise<void> {
 
 export async function disconnectGitHub(): Promise<void> { await disconnectPublicProfile('github'); }
 
-export async function syncGitHub(): Promise<{ syncedAt: string; username: string }> {
-  const status = await getIntegrationStatus();
-  const handle = status.github.username ?? status.github.handle;
-  if (!handle) throw new Error('GitHub is not connected.');
-  const profile = await syncPublicProfile('github', handle);
-  return { syncedAt: profile.lastSyncedAt ?? profile.last_synced_at ?? new Date().toISOString(), username: profile.handle };
+export async function syncGitHub(): Promise<GitHubPrivateSync> {
+  const { data, error } = await supabase.functions.invoke('sync-github-private', { body: {} });
+  if (error) {
+    let message = error.message;
+    const context = (error as { context?: { json?: () => Promise<unknown> } }).context;
+    if (context?.json) {
+      try { const body = await context.json() as { error?: string }; if (body?.error) message = body.error; } catch { /* keep default */ }
+    }
+    throw new Error(message);
+  }
+  const payload = data as Partial<GitHubPrivateSync> & { error?: string };
+  if (payload.error) throw new Error(payload.error);
+  if (!payload.syncedAt || !payload.username) throw new Error('GitHub sync returned an incomplete result.');
+  return payload as GitHubPrivateSync;
 }
 
 export async function syncIntegration(provider: Exclude<IntegrationId, 'github'>): Promise<{ syncedAt: string; handle: string; provider: string }> {
