@@ -54,7 +54,7 @@ async function startOwnershipVerification(platform: 'leetcode' | 'codewars', han
   const result = data as { error?: string; challengeId?: string } & Partial<OwnershipChallenge>;
   if (result.error) throw new Error(result.error);
   if (!result.code || !result.expiresAt || !result.instructions) throw new Error('The verification challenge was incomplete.');
-  const challenge = { ...result, challengeId: result.challengeId ?? result.id } as OwnershipChallenge;
+  const challenge = { ...result, challengeId: result.challengeId } as OwnershipChallenge;
   sessionStorage.setItem(OWNERSHIP_CHALLENGE_KEY, JSON.stringify(challenge));
   return challenge;
 }
