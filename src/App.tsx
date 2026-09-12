@@ -15,6 +15,7 @@ import { CompareView } from '@/features/compare/CompareView';
 import { AnalyzeView } from '@/features/analyze/AnalyzeView';
 import { IntegrationsView } from '@/features/integrations/IntegrationsView';
 import { GitHubDataView } from '@/features/integrations/GitHubDataView';
+import { OwnershipVerificationView } from '@/features/integrations/OwnershipVerificationView';
 import { AIInsightsView } from '@/features/ai-insights/AIInsightsView';
 import { GoalsView } from '@/features/goals/GoalsView';
 
@@ -50,6 +51,7 @@ function App() {
       <Route path="analytics" element={<AnalyzeView />} />
       <Route path="integrations" element={<IntegrationsView />} />
       <Route path="integrations/github" element={<GitHubDataView />} />
+      <Route path="integrations/verify/:platform" element={<OwnershipVerificationView />} />
       <Route path="ai-insights" element={<AIInsightsView />} />
       <Route path="goals" element={<GoalsView />} />
     </Route></Route>
