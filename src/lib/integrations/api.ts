@@ -33,6 +33,10 @@ async function syncPublicProfile(platform: IntegrationId, handle: string): Promi
   return payload.profile;
 }
 
+export async function connectPublicProfile(platform: Exclude<IntegrationId, 'github' | 'codeforces' | 'stackoverflow'>, handle: string): Promise<SyncProfile> {
+  return syncPublicProfile(platform, handle);
+}
+
 async function invokeOAuth(functionName: string, provider: string, body: Record<string, unknown> = {}): Promise<void> {
   const { data, error } = await supabase.functions.invoke(functionName, { body });
   if (error) { let message = error.message; const context = (error as { context?: { json?: () => Promise<unknown> } }).context; if (context?.json) { try { const responseBody = await context.json() as { error?: string }; if (responseBody?.error) message = responseBody.error; } catch { /* keep default */ } } throw new Error(message); }
@@ -93,7 +97,7 @@ async function createPkceChallenge(verifier: string): Promise<string> { const di
 export async function completeStackOverflowOAuth(code: string, state: string): Promise<void> {
   const verifier = sessionStorage.getItem(STACKOVERFLOW_PKCE_KEY);
   if (!verifier) throw new Error('Stack Overflow sign-in session is missing. Please start the connection again.');
-  const form = new URLSearchParams({ client_id: STACKOVERFLOW_CLIENT_ID, redirect_uri: STACKOVERFLOW_REDIRECT_URI, code, code_verifier: verifier, });
+  const form = new URLSearchParams({ client_id: STACKOVERFLOW_CLIENT_ID, redirect_uri: STACKOVERFLOW_REDIRECT_URI, code, code_verifier: verifier });
   const response = await fetch('https://stackoverflow.com/oauth/access_token/json', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form.toString() });
   const text = await response.text();
   let payload: { access_token?: string; error?: { type?: string; message?: string }; error_message?: string } = {};
