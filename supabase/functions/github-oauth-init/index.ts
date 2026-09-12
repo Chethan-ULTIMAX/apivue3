@@ -4,15 +4,22 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const CLIENT_ID = Deno.env.get("GITHUB_APP_CLIENT_ID") ?? "";
 const CALLBACK_URL = "https://ehabrjqrfhgwdlmbcwho.supabase.co/functions/v1/github-oauth-callback";
 const INSTALL_URL = "https://github.com/apps/apivue-developer-explorer/installations/new";
+const AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 function secretKey() {
   const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
   if (raw) {
-    try { const parsed = JSON.parse(raw); return parsed.default ?? Object.values(parsed)[0]; } catch { /* fallback */ }
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.default ?? Object.values(parsed)[0];
+    } catch { /* fallback */ }
   }
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 }
@@ -33,16 +40,31 @@ Deno.serve(async (req) => {
 
   const stateBytes = new Uint8Array(32);
   crypto.getRandomValues(stateBytes);
-  const state = Array.from(stateBytes, b => b.toString(16).padStart(2, "0")).join("");
+  const state = Array.from(stateBytes, (b) => b.toString(16).padStart(2, "0")).join("");
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(state));
-  const stateHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+  const stateHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, secretKey(), { auth: { persistSession: false } });
-  const { error: insertError } = await admin.from("github_oauth_states").insert({ user_id: data.user.id, state_hash: stateHash });
+  const { error: insertError } = await admin.from("github_oauth_states").insert({
+    user_id: data.user.id,
+    state_hash: stateHash,
+  });
   if (insertError) return json({ error: insertError.message }, 500);
 
-  const url = new URL(INSTALL_URL);
-  url.searchParams.set("state", state);
+  // Always start with GitHub's App OAuth flow. This fixes the common case where
+  // the App is already installed: GitHub then shows the installation settings
+  // page instead of returning to our callback, leaving APIVue looking disconnected.
+  // If the user has not installed the App yet, the callback sends them through
+  // the installation flow and reuses the same short-lived state.
+  const url = new URL(AUTHORIZE_URL);
+  url.searchParams.set("client_id", CLIENT_ID);
   url.searchParams.set("redirect_uri", CALLBACK_URL);
-  return json({ url: url.toString() });
+  url.searchParams.set("state", state);
+  url.searchParams.set("allow_signup", "false");
+
+  return json({
+    url: url.toString(),
+    installUrl: INSTALL_URL,
+    flow: "github-app-oauth",
+  });
 });
