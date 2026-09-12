@@ -33,7 +33,15 @@ jobs:
         run: npm ci
 
       - name: Build APIVue
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
         run: npm run build
+
+      # GitHub Pages serves 404.html for deep links. Copying the SPA entry
+      # point lets React Router recover routes such as /APIVue/dashboard.
+      - name: Configure SPA fallback
+        run: cp dist/index.html dist/404.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
