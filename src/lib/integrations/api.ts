@@ -87,7 +87,7 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
 
 export async function connectGitHub(): Promise<void> { await invokeOAuth('github-oauth-init', 'GitHub'); }
 export async function connectCodeforces(_handle?: string): Promise<void> { await invokeOAuth('codeforces-oauth-init', 'Codeforces'); }
-export async function connectStackOverflow(): Promise<void> { await invokeOAuth('stackoverflow-oauth-init', 'Stack Overflow'); }
+export async function connectStackOverflow(_handle?: string): Promise<void> { await invokeOAuth('stackoverflow-oauth-init', 'Stack Overflow'); }
 
 async function disconnectPublicProfile(provider: IntegrationId): Promise<void> {
   const { data, error } = await supabase.from('tracked_profiles').select('id').eq('platform', provider).limit(1);
