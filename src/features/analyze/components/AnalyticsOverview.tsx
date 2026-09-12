@@ -1,6 +1,5 @@
 import {
   Activity,
-  BarChart3,
   Database,
   History,
   Sparkles,
@@ -13,33 +12,50 @@ type AnalyticsOverviewProps = {
   report: ProgressReport;
 };
 
-const metrics = [
+const sections = [
   {
+    key: 'sources',
     icon: Database,
     title: 'Data sources',
     description: 'Platforms contributing data to APIVue.',
   },
   {
+    key: 'activity',
     icon: Activity,
     title: 'Activity',
     description: 'Understand what you have been doing.',
   },
   {
+    key: 'history',
     icon: History,
     title: 'History',
     description: 'Build a timeline of your activity.',
   },
   {
+    key: 'insights',
     icon: Sparkles,
     title: 'Insights',
     description: 'Discover meaningful patterns later.',
   },
-];
+] as const;
 
-export function AnalyticsOverview({
-  report,
-}: AnalyticsOverviewProps) {
+export function AnalyticsOverview({ report }: AnalyticsOverviewProps) {
   const hasData = report.profileCount > 0;
+
+  const footerFor = (key: (typeof sections)[number]['key']): string => {
+    switch (key) {
+      case 'sources':
+        return `${report.profileCount} connected`;
+      case 'history':
+        return `${report.snapshotCount} snapshot${
+          report.snapshotCount === 1 ? '' : 's'
+        }`;
+      case 'activity':
+      case 'insights':
+        return hasData ? 'Calculated from stored data' : 'Connect data to unlock';
+    }
+  };
+
   return (
     <section>
       <div className="mb-4">
@@ -53,37 +69,37 @@ export function AnalyticsOverview({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric) => {
-          const Icon = metric.icon;
+        {sections.map((section) => {
+          const Icon = section.icon;
 
           return (
             <Card
-              key={metric.title}
-              className="group border-border/70 bg-card/50 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-500/20 hover:bg-card/70"
+              key={section.key}
+              className="group border-border bg-card/60 transition-all duration-300 hover:-translate-y-0.5 hover:border-violet-500/30 hover:bg-card"
             >
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04]">
-                    <Icon className="h-4 w-4 text-violet-300" />
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/60">
+                    <Icon className="h-4 w-4 text-violet-500 dark:text-violet-300" />
                   </div>
 
-                  {hasData ? (
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  ) : (
-                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
-                  )}
+                  <span
+                    className={
+                      hasData
+                        ? 'h-1.5 w-1.5 rounded-full bg-emerald-500'
+                        : 'h-1.5 w-1.5 rounded-full bg-muted-foreground/40'
+                    }
+                  />
                 </div>
 
-                <h3 className="mt-4 text-sm font-medium">
-                  {metric.title}
-                </h3>
+                <h3 className="mt-4 text-sm font-medium">{section.title}</h3>
 
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {metric.description}
+                  {section.description}
                 </p>
 
-                <div className="mt-4 border-t border-border/50 pt-3 text-xs text-muted-foreground">
-                  {metric.title === 'Data sources' ? `${report.profileCount} connected` : metric.title === 'History' ? `${report.snapshotCount} snapshots` : hasData ? 'Calculated from stored data' : 'Connect data to unlock'}
+                <div className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+                  {footerFor(section.key)}
                 </div>
               </CardContent>
             </Card>

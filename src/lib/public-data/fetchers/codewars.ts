@@ -1,28 +1,29 @@
-import type {
-  PublicActivity,
-  PublicDataResult,
-  PublicProfile,
-} from '../types';
+/**
+ * Codewars public profile fetcher.
+ */
 
-interface CodewarsUser {
+const CODEWARS_API = 'https://www.codewars.com/api/v1';
+
+/* ============================================================
+ * Raw types
+ * ============================================================ */
+
+export interface RawCodewarsRankInfo {
+  rank: number;
+  name: string;
+  score: number;
+  color: string;
+}
+
+export interface RawCodewarsUser {
   username: string;
   name?: string;
   honor: number;
   clan?: string;
   leaderboardPosition?: number;
   ranks: {
-    overall: {
-      rank: number;
-      name: string;
-      score: number;
-      color: string;
-    };
-    languages: Record<string, {
-      rank: number;
-      name: string;
-      score: number;
-      color: string;
-    }>;
+    overall: RawCodewarsRankInfo;
+    languages: Record<string, RawCodewarsRankInfo>;
   };
   codeChallenges: {
     totalAuthored?: number;
@@ -31,78 +32,47 @@ interface CodewarsUser {
   country?: string;
 }
 
+/* ============================================================
+ * HTTP helper
+ * ============================================================ */
+
+async function codewarsRequest<T>(path: string): Promise<T> {
+  const response = await fetch(`${CODEWARS_API}${path}`, {
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Codewars user not found.');
+    }
+    throw new Error(
+      `Codewars request failed with status ${response.status}.`,
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+/* ============================================================
+ * Public API
+ * ============================================================ */
+
 export async function fetchCodewarsPublicProfile(
-  username: string
-): Promise<PublicDataResult> {
+  username: string,
+): Promise<RawCodewarsUser> {
   const cleanUsername = username.trim();
 
   if (!cleanUsername) {
     throw new Error('Enter a Codewars username.');
   }
 
-  const response = await fetch(`https://www.codewars.com/api/v1/users/${encodeURIComponent(cleanUsername)}`);
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Codewars user not found.');
-    }
-    throw new Error(`Codewars request failed with status ${response.status}.`);
-  }
-
-  const user: CodewarsUser = await response.json();
+  const user = await codewarsRequest<RawCodewarsUser>(
+    `/users/${encodeURIComponent(cleanUsername)}`,
+  );
 
   if (!user.username) {
     throw new Error('Codewars user not found.');
   }
 
-  const langs = user.ranks?.languages ?? {};
-
-  const profile: PublicProfile = {
-    platform: 'codewars',
-    username: user.username,
-    displayName: user.name || user.username,
-    avatarUrl: null,
-    profileUrl: `https://www.codewars.com/users/${user.username}`,
-    bio: null,
-    location: user.country ?? null,
-    joinedAt: null,
-  };
-
-  return {
-    platform: 'codewars',
-    profile,
-    metrics: [
-      {
-        label: 'Honor',
-        value: user.honor ?? 0,
-      },
-      {
-        label: 'Overall rank',
-        value: user.ranks?.overall?.name ?? 'Unranked',
-      },
-      {
-        label: 'Overall score',
-        value: user.ranks?.overall?.score ?? 0,
-      },
-      {
-        label: 'Katas completed',
-        value: user.codeChallenges?.totalCompleted ?? 0,
-      },
-      {
-        label: 'Katas authored',
-        value: user.codeChallenges?.totalAuthored ?? 0,
-      },
-      {
-        label: 'Leaderboard position',
-        value: user.leaderboardPosition ?? 'Unranked',
-      },
-      {
-        label: 'Clan',
-        value: user.clan ?? 'None',
-      },
-    ],
-    activity: [],
-    fetchedAt: new Date().toISOString(),
-    source: 'public-api',
-  };
+  return user;
 }

@@ -13,17 +13,16 @@ type ActivityAnalyticsProps = {
   report: ProgressReport;
 };
 
-export function ActivityAnalytics({
-  report,
-}: ActivityAnalyticsProps) {
+export function ActivityAnalytics({ report }: ActivityAnalyticsProps) {
   const hasData = report.profileCount > 0;
+
   return (
-    <Card className="border-border/70 bg-card/50">
-      <CardHeader className="border-b border-border/50">
+    <Card className="border-border bg-card/60">
+      <CardHeader className="border-b border-border">
         <div className="flex items-center justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4 text-blue-300" />
+              <Activity className="h-4 w-4 text-blue-500 dark:text-blue-300" />
               Activity analytics
             </CardTitle>
 
@@ -47,22 +46,30 @@ export function ActivityAnalytics({
           <EmptyActivity />
         ) : (
           <div className="space-y-4">
-            <AnalyticsPlaceholder
+            <ActivityRow
               icon={CalendarDays}
               title="Daily activity"
-              description={`${report.activity.activeDays} active days across ${report.activity.totalDays} recorded days.`}
+              description={`${report.activity.activeDays} active day${
+                report.activity.activeDays === 1 ? '' : 's'
+              } across ${report.activity.totalDays} recorded day${
+                report.activity.totalDays === 1 ? '' : 's'
+              }.`}
             />
 
-            <AnalyticsPlaceholder
+            <ActivityRow
               icon={Layers3}
               title="Activity distribution"
               description={`${report.activity.totalEvents.toLocaleString()} total events, with ${report.activity.last7.toLocaleString()} in the latest seven recorded days.`}
             />
 
-            <AnalyticsPlaceholder
+            <ActivityRow
               icon={Clock3}
               title="Activity patterns"
-              description={`Current streak: ${report.activity.currentStreak} days. Longest streak: ${report.activity.longestStreak} days.`}
+              description={`Current streak: ${report.activity.currentStreak} day${
+                report.activity.currentStreak === 1 ? '' : 's'
+              }. Longest streak: ${report.activity.longestStreak} day${
+                report.activity.longestStreak === 1 ? '' : 's'
+              }.`}
             />
           </div>
         )}
@@ -73,14 +80,12 @@ export function ActivityAnalytics({
 
 function EmptyActivity() {
   return (
-    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-border/70 bg-black/10 p-6 text-center">
+    <div className="flex min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10">
-        <Activity className="h-5 w-5 text-blue-300" />
+        <Activity className="h-5 w-5 text-blue-500 dark:text-blue-300" />
       </div>
 
-      <h3 className="mt-4 text-sm font-medium">
-        No activity history yet
-      </h3>
+      <h3 className="mt-4 text-sm font-medium">No activity history yet</h3>
 
       <p className="mt-2 max-w-sm text-xs leading-5 text-muted-foreground">
         Connect a platform and APIVue will begin collecting the activity you
@@ -90,7 +95,7 @@ function EmptyActivity() {
   );
 }
 
-function AnalyticsPlaceholder({
+function ActivityRow({
   icon: Icon,
   title,
   description,
@@ -100,9 +105,9 @@ function AnalyticsPlaceholder({
   description: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-border/50 bg-black/10 p-4">
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-        <Icon className="h-4 w-4 text-blue-300" />
+        <Icon className="h-4 w-4 text-blue-500 dark:text-blue-300" />
       </div>
 
       <div>

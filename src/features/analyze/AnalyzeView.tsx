@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useProfileSnapshots, useTrackedProfiles } from '@/hooks/use-profiles';
 import { buildProgressReport } from '@/lib/analytics/progress';
+import type { TrackedProfile } from '@/lib/integrations/registry';
+import type { PublicDataResult } from '@/lib/public-data';
 
 import {
-  Activity,
   ArrowRight,
   BarChart3,
   CalendarDays,
@@ -16,7 +17,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -26,6 +27,71 @@ import { ProgressAnalytics } from './components/ProgressAnalytics';
 import { StatisticsOverview } from './components/StatisticsOverview';
 import { TrendAnalytics } from './components/TrendAnalytics';
 
+/* ============================================================
+ * Convert an explored public profile into the TrackedProfile
+ * shape used by the analytics engine.
+ *
+ * IMPORTANT: explored profiles are NOT persisted and have no
+ * snapshots, so they contribute only current-state metrics — not
+ * trends. This is intentional; trends require historical data.
+ * ============================================================ */
+
+function metricKeyFromLabel(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+function dayKeyFromIso(iso: string): string {
+  // PublicActivity.timestamp is an ISO string.
+  return iso.slice(0, 10);
+}
+
+function publicActivitiesToDailyCounts(
+  activities: PublicDataResult['activity'],
+): Array<{ date: string; count: number }> {
+  const byDay = new Map<string, number>();
+  for (const item of activities) {
+    const key = dayKeyFromIso(item.timestamp);
+    byDay.set(key, (byDay.get(key) ?? 0) + 1);
+  }
+  return Array.from(byDay.entries())
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function exploreProfileToTrackedProfile(
+  explored: PublicDataResult,
+): TrackedProfile {
+  const profile = explored.profile;
+  const username = profile.username;
+
+  return {
+    id: `explored-${explored.platform}-${username}`,
+    platform: explored.platform,
+    handle: username,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+    profileUrl: profile.profileUrl,
+    lastSyncedAt: explored.fetchedAt,
+    data: {
+      bio: profile.bio ?? undefined,
+      location: profile.location ?? undefined,
+      joinedAt: profile.joinedAt ?? undefined,
+      metrics: explored.metrics.map((m) => ({
+        key: metricKeyFromLabel(m.label),
+        label: m.label,
+        value: m.value,
+        format: typeof m.value === 'number' ? 'number' : undefined,
+      })),
+      activity: publicActivitiesToDailyCounts(explored.activity),
+      breakdowns: (explored.breakdowns ?? []).map((breakdown) => ({
+        key: breakdown.label,
+        label: breakdown.label,
+        items: breakdown.items,
+      })),
+    },
+  };
+}
+
 export function AnalyzeView() {
   const location = useLocation();
   const {
@@ -33,32 +99,22 @@ export function AnalyzeView() {
     isLoading,
     refetch,
   } = useTrackedProfiles();
-  const { data: snapshots = [], isLoading: snapshotsLoading } = useProfileSnapshots();
+  const { data: snapshots = [], isLoading: snapshotsLoading } =
+    useProfileSnapshots();
 
-  const exploredProfile = location.state?.exploreProfile;
+  const exploredProfile = (location.state as { exploreProfile?: PublicDataResult } | null)
+    ?.exploreProfile;
 
-  const connectedProfiles = useMemo(() => {
+  const effectiveProfiles = useMemo<TrackedProfile[]>(() => {
     const base = Array.isArray(profiles) ? profiles : [];
-    if (exploredProfile) {
-      const explored = {
-        id: `explored-${exploredProfile.platform}-${exploredProfile.profile.username}`,
-        platform: exploredProfile.platform,
-        handle: exploredProfile.profile.username,
-        display_name: exploredProfile.profile.displayName,
-        avatar_url: exploredProfile.profile.avatarUrl,
-        profile_url: exploredProfile.profile.profileUrl,
-        data: {
-          metrics: exploredProfile.metrics.map(m => ({ key: m.label.toLowerCase().replace(/\s+/g, '_'), label: m.label, value: m.value, format: 'number' })),
-          activity: exploredProfile.activity,
-        },
-        last_synced_at: exploredProfile.fetchedAt,
-      };
-      return [...base, explored];
-    }
-    return base;
+    if (!exploredProfile) return base;
+    return [...base, exploreProfileToTrackedProfile(exploredProfile)];
   }, [profiles, exploredProfile]);
 
-  const report = useMemo(() => buildProgressReport(connectedProfiles, snapshots), [connectedProfiles, snapshots]);
+  const report = useMemo(
+    () => buildProgressReport(effectiveProfiles, snapshots),
+    [effectiveProfiles, snapshots],
+  );
   const hasConnectedData = report.profileCount > 0;
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -103,14 +159,13 @@ export function AnalyzeView() {
       </div>
 
       <div className="relative mx-auto max-w-7xl space-y-8 p-5 sm:p-6 lg:p-8">
-
         {/* Header */}
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
-                className="border-violet-500/20 bg-violet-500/[0.05] text-violet-300"
+                className="border-violet-500/30 bg-violet-500/10 text-violet-600 dark:text-violet-300"
               >
                 <BarChart3 className="mr-1.5 h-3 w-3" />
                 Analytics
@@ -119,9 +174,9 @@ export function AnalyzeView() {
               {hasConnectedData && (
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-400"
+                  className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 >
-                  <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   Data connected
                 </Badge>
               )}
@@ -137,7 +192,7 @@ export function AnalyzeView() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" />
             {today}
           </div>
@@ -145,12 +200,12 @@ export function AnalyzeView() {
 
         {/* Data status */}
         {!hasConnectedData ? (
-          <Card className="relative overflow-hidden border-violet-500/20 bg-gradient-to-br from-violet-950/20 via-card/70 to-card/50">
+          <Card className="relative overflow-hidden border-violet-500/30 bg-gradient-to-br from-violet-500/[0.04] via-card to-card">
             <CardContent className="relative p-6 sm:p-8">
               <div className="grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
                 <div className="max-w-2xl">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10">
-                    <Database className="h-5 w-5 text-violet-300" />
+                    <Database className="h-5 w-5 text-violet-500 dark:text-violet-300" />
                   </div>
 
                   <h2 className="mt-5 text-xl font-semibold">
@@ -165,25 +220,22 @@ export function AnalyzeView() {
 
                   <div className="mt-5 flex flex-wrap gap-3">
                     <Link to="/dashboard/integrations">
-                      <Button className="gap-2 bg-white text-black hover:bg-zinc-200">
+                      <Button className="gap-2">
                         Connect a platform
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
 
                     <Link to="/dashboard/explore">
-                      <Button
-                        variant="outline"
-                        className="gap-2 border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-                      >
-                        <Sparkles className="h-4 w-4 text-violet-300" />
+                      <Button variant="outline" className="gap-2">
+                        <Sparkles className="h-4 w-4 text-violet-500 dark:text-violet-300" />
                         Explore public data
                       </Button>
                     </Link>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-white/[0.07] bg-black/20 p-5 lg:w-80">
+                <div className="rounded-xl border border-border bg-muted/40 p-5 lg:w-80">
                   <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Analytics unlocks
                   </p>
@@ -210,17 +262,17 @@ export function AnalyzeView() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="border-emerald-500/15 bg-emerald-500/[0.025]">
+          <Card className="border-emerald-500/20 bg-emerald-500/[0.03]">
             <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-                  <Database className="h-4 w-4 text-emerald-400" />
+                  <Database className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
 
                 <div>
                   <p className="text-sm font-medium">
-                    {connectedProfiles.length} connected source
-                    {connectedProfiles.length === 1 ? '' : 's'}
+                    {effectiveProfiles.length} connected source
+                    {effectiveProfiles.length === 1 ? '' : 's'}
                   </p>
 
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -259,11 +311,11 @@ export function AnalyzeView() {
         <TrendAnalytics hasData={hasConnectedData} />
 
         {/* Intelligence note */}
-        <Card className="border-border/70 bg-card/40">
+        <Card className="border-border bg-card/60">
           <CardContent className="p-5 sm:p-6">
             <div className="flex gap-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10">
-                <TrendingUp className="h-5 w-5 text-orange-300" />
+                <TrendingUp className="h-5 w-5 text-orange-500 dark:text-orange-300" />
               </div>
 
               <div>
@@ -283,8 +335,8 @@ export function AnalyzeView() {
         </Card>
 
         {/* Privacy */}
-        <div className="flex items-center gap-2 border-t border-border/60 pt-5 text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5 text-emerald-400" />
+        <div className="flex items-center gap-2 border-t border-border pt-5 text-xs text-muted-foreground">
+          <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           <span>
             Personal analytics are generated from data available to your
             APIVue account and authorized integrations.
@@ -302,7 +354,7 @@ function CheckIcon() {
       <svg
         viewBox="0 0 20 20"
         fill="none"
-        className="h-3 w-3 text-emerald-400"
+        className="h-3 w-3 text-emerald-600 dark:text-emerald-400"
       >
         <path
           d="M5 10.5L8.5 14L15 6.5"

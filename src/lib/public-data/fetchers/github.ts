@@ -1,44 +1,89 @@
-import type {
-  PublicActivity,
-  PublicDataResult,
-  PublicProfile,
-} from '../types';
+/**
+ * GitHub public profile fetcher.
+ *
+ * Contacts api.github.com and returns a typed raw shape. No shaping
+ * into APIVue's PublicDataResult happens here — that is the
+ * normalizer's job.
+ */
 
 const GITHUB_API = 'https://api.github.com';
 
-interface GitHubUser {
+/* ============================================================
+ * Raw types (GitHub API shapes we care about)
+ * ============================================================ */
+
+export interface RawGitHubUser {
   login: string;
+  id: number;
   name: string | null;
   avatar_url: string;
   html_url: string;
   bio: string | null;
+  company: string | null;
+  blog: string | null;
   location: string | null;
+  twitter_username: string | null;
   created_at: string;
+  updated_at: string;
   public_repos: number;
+  public_gists: number;
   followers: number;
   following: number;
-  public_gists: number;
 }
 
-interface GitHubEvent {
+export interface RawGitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  description: string | null;
+  language: string | null;
+  stargazers_count: number;
+  forks_count: number;
+  open_issues_count: number;
+  size: number;
+  fork: boolean;
+  archived: boolean;
+  disabled?: boolean;
+  topics?: string[];
+  default_branch: string;
+  created_at: string;
+  updated_at: string;
+  pushed_at: string;
+}
+
+export interface RawGitHubEvent {
   id: string;
   type: string;
   created_at: string | null;
-  repo?: {
-    name: string;
-  };
+  repo?: { name: string };
   payload?: {
     ref?: string;
-    commits?: Array<{
-      message?: string;
-    }>;
+    size?: number;
+    action?: string;
+    commits?: Array<{ message?: string }>;
   };
+}
+
+export interface RawGitHubProfile {
+  user: RawGitHubUser;
+  repos: RawGitHubRepo[];
+  events: RawGitHubEvent[];
+}
+
+/* ============================================================
+ * HTTP helper
+ * ============================================================ */
+
+interface GitHubErrorResponse {
+  message?: string;
 }
 
 async function githubRequest<T>(path: string): Promise<T> {
   const response = await fetch(`${GITHUB_API}${path}`, {
     headers: {
       Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
     },
   });
 
@@ -47,119 +92,67 @@ async function githubRequest<T>(path: string): Promise<T> {
       throw new Error('GitHub user not found.');
     }
 
-    if (response.status === 403) {
+    if (response.status === 403 || response.status === 429) {
+      const remaining = response.headers.get('x-ratelimit-remaining');
+      if (remaining === '0') {
+        const reset = response.headers.get('x-ratelimit-reset');
+        const resetMsg = reset
+          ? ` Try again after ${new Date(Number(reset) * 1000).toLocaleTimeString()}.`
+          : ' Please try again later.';
+        throw new Error(`GitHub API rate limit reached.${resetMsg}`);
+      }
       throw new Error(
-        'GitHub public API rate limit reached. Please try again later.'
+        'GitHub refused the request. Please try again in a moment.',
       );
     }
 
-    throw new Error(`GitHub request failed with status ${response.status}.`);
+    let detail = '';
+    try {
+      const body = (await response.json()) as GitHubErrorResponse;
+      if (body?.message) detail = ` (${body.message})`;
+    } catch {
+      /* non-JSON response */
+    }
+
+    throw new Error(
+      `GitHub request failed with status ${response.status}${detail}.`,
+    );
   }
 
-  return response.json();
+  return (await response.json()) as T;
 }
 
+/* ============================================================
+ * Public API
+ * ============================================================ */
+
+/**
+ * Fetches a GitHub user's public profile, their public repositories
+ * (up to 100, sorted by stars), and their recent public events.
+ *
+ * Note: GitHub's public API does not expose private repositories.
+ * Any request for them would require OAuth with appropriate scopes.
+ */
 export async function fetchGitHubPublicProfile(
-  username: string
-): Promise<PublicDataResult> {
+  username: string,
+): Promise<RawGitHubProfile> {
   const cleanUsername = username.trim();
 
   if (!cleanUsername) {
     throw new Error('Enter a GitHub username.');
   }
 
-  const [user, events] = await Promise.all([
-    githubRequest<GitHubUser>(
-      `/users/${encodeURIComponent(cleanUsername)}`
+  const encoded = encodeURIComponent(cleanUsername);
+
+  const [user, repos, events] = await Promise.all([
+    githubRequest<RawGitHubUser>(`/users/${encoded}`),
+    githubRequest<RawGitHubRepo[]>(
+      `/users/${encoded}/repos?per_page=100&sort=pushed&direction=desc`,
     ),
-    githubRequest<GitHubEvent[]>(
-      `/users/${encodeURIComponent(cleanUsername)}/events/public?per_page=10`
+    githubRequest<RawGitHubEvent[]>(
+      `/users/${encoded}/events/public?per_page=30`,
     ),
   ]);
 
-  const profile: PublicProfile = {
-    platform: 'github',
-    username: user.login,
-    displayName: user.name,
-    avatarUrl: user.avatar_url,
-    profileUrl: user.html_url,
-    bio: user.bio,
-    location: user.location,
-    joinedAt: user.created_at,
-  };
-
-  const activity: PublicActivity[] = events
-    .filter((event) => event.created_at)
-    .map((event) => ({
-      id: event.id,
-      title: formatGitHubEventTitle(event),
-      description: event.repo
-        ? `Repository: ${event.repo.name}`
-        : undefined,
-      timestamp: event.created_at!,
-      url: event.repo
-        ? `https://github.com/${event.repo.name}`
-        : user.html_url,
-      type: event.type,
-    }));
-
-  return {
-    platform: 'github',
-    profile,
-    metrics: [
-      {
-        label: 'Public repositories',
-        value: user.public_repos,
-      },
-      {
-        label: 'Followers',
-        value: user.followers,
-      },
-      {
-        label: 'Following',
-        value: user.following,
-      },
-      {
-        label: 'Public gists',
-        value: user.public_gists,
-      },
-    ],
-    activity,
-    fetchedAt: new Date().toISOString(),
-    source: 'public-api',
-  };
-}
-
-function formatGitHubEventTitle(event: GitHubEvent): string {
-  switch (event.type) {
-    case 'PushEvent':
-      return 'Pushed code';
-
-    case 'PullRequestEvent':
-      return 'Updated a pull request';
-
-    case 'IssuesEvent':
-      return 'Updated an issue';
-
-    case 'IssueCommentEvent':
-      return 'Commented on an issue';
-
-    case 'CreateEvent':
-      return 'Created something';
-
-    case 'DeleteEvent':
-      return 'Deleted something';
-
-    case 'ForkEvent':
-      return 'Forked a repository';
-
-    case 'WatchEvent':
-      return 'Starred a repository';
-
-    case 'ReleaseEvent':
-      return 'Published a release';
-
-    default:
-      return event.type.replace(/Event$/, '');
-  }
+  return { user, repos, events };
 }

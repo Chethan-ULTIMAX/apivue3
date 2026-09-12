@@ -1,4 +1,7 @@
-import type { PublicPlatform } from '@/lib/public-data';
+import {
+  getPublicPlatform,
+  type PublicPlatform,
+} from '@/lib/public-data';
 
 interface ProfileSearchProps {
   value: string;
@@ -15,18 +18,15 @@ export function ProfileSearch({
   loading,
   platform,
 }: ProfileSearchProps) {
-  const placeholder =
-    platform === 'github'
-      ? 'Enter GitHub username'
-      : 'Enter Codeforces handle';
+  const definition = getPublicPlatform(platform);
 
   return (
     <div>
       <label
         htmlFor="profile-username"
-        className="mb-2 block text-sm font-medium text-white/70"
+        className="mb-2 block text-sm font-medium text-foreground"
       >
-        Username / Handle
+        Username / handle
       </label>
 
       <input
@@ -36,16 +36,18 @@ export function ProfileSearch({
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !loading) {
+            event.preventDefault();
             onSubmit();
           }
         }}
-        placeholder={placeholder}
+        placeholder={definition.placeholder}
         disabled={loading}
         autoComplete="off"
-        className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-violet-400/50 disabled:cursor-not-allowed disabled:opacity-50"
+        spellCheck={false}
+        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none transition focus:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
       />
 
-      <p className="mt-2 text-xs text-white/40">
+      <p className="mt-2 text-xs text-muted-foreground">
         Public data only. No account connection required.
       </p>
     </div>

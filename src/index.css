@@ -1,15 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-/* stylelint-disable at-rule-no-unknown */
-/* css-lint: disable unknownAtRules */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* css-lint: enable unknownAtRules */
-/* stylelint-enable at-rule-no-unknown */
 
 @layer base {
   :root {
+    /* ------------------------------------------------------------
+     * Core surfaces
+     * ------------------------------------------------------------ */
     --background: 0 0% 100%;
     --foreground: 228 14% 10%;
 
@@ -19,6 +18,9 @@
     --popover: 0 0% 100%;
     --popover-foreground: 228 14% 10%;
 
+    /* ------------------------------------------------------------
+     * Brand
+     * ------------------------------------------------------------ */
     --primary: 243 75% 59%;
     --primary-foreground: 0 0% 100%;
 
@@ -40,6 +42,9 @@
 
     --radius: 0.5rem;
 
+    /* ------------------------------------------------------------
+     * Sidebar
+     * ------------------------------------------------------------ */
     --sidebar-background: 220 14% 98%;
     --sidebar-foreground: 220 10% 35%;
     --sidebar-primary: 243 75% 59%;
@@ -49,11 +54,9 @@
     --sidebar-border: 220 14% 90%;
     --sidebar-ring: 243 75% 59%;
 
-    /* Custom tokens */
-    --priority-p0: 0 72% 51%;
-    --priority-p1: 25 95% 53%;
-    --priority-p2: 220 10% 50%;
-
+    /* ------------------------------------------------------------
+     * Status colors
+     * ------------------------------------------------------------ */
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
 
@@ -62,10 +65,6 @@
 
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
-
-    --epic-auth: 280 67% 60%;
-    --epic-dashboard: 199 89% 48%;
-    --epic-api: 142 71% 45%;
   }
 
   .dark {
@@ -82,7 +81,7 @@
     --secondary-foreground: 220 14% 80%;
 
     --muted: 228 14% 16%;
-    --muted-foreground: 220 10% 50%;
+    --muted-foreground: 220 10% 55%;
 
     --accent: 228 14% 20%;
     --accent-foreground: 220 14% 90%;
@@ -101,14 +100,26 @@
 @layer base {
   * {
     @apply border-border;
+  }
 
-    transition-property:
-      background-color,
-      color,
-      border-color;
-
+  /*
+   * Theme-transition: only animate when the user toggles themes.
+   * Applying a transition to `*` unconditionally causes every
+   * hover, focus, and layout shift to animate too, which can feel
+   * sluggish. We scope it to a helper class toggled on <html>.
+   */
+  .theme-transitioning * {
+    transition-property: background-color, color, border-color;
     transition-duration: 250ms;
     transition-timing-function: ease;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
@@ -140,21 +151,19 @@
   }
 }
 
-/* =========================================================
-   APIVue — Interactive Demo Shine
-   Runs once approximately every 5 seconds.
-   ========================================================= */
+/* ============================================================
+ * Landing-page demo shine
+ * Runs once approximately every 5 seconds.
+ * ============================================================ */
 
 @keyframes demo-shine {
   0%,
   75% {
     transform: translateX(-130%) skewX(-20deg);
   }
-
   85% {
     transform: translateX(130%) skewX(-20deg);
   }
-
   100% {
     transform: translateX(130%) skewX(-20deg);
   }
@@ -164,7 +173,6 @@
   animation: demo-shine 5s ease-in-out infinite;
 }
 
-/* Respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-demo-shine {
     animation: none;

@@ -1,5 +1,22 @@
+/**
+ * Activity hooks.
+ *
+ * All activity operations go through the APIVue backend
+ * (`/api/activity/*`), which enforces authentication and ownership.
+ * The frontend never writes directly to the `activity_events` table —
+ * that would create two conflicting sources of truth and bypass
+ * backend validation.
+ *
+ * The backend must accept Supabase bearer tokens (or cookies) for
+ * every route.
+ */
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+/* ============================================================
+ * Types
+ * ============================================================ */
 
 export interface ActivityEvent {
   id: string;
@@ -8,12 +25,12 @@ export interface ActivityEvent {
   event_type: string;
   value: number | null;
   unit: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   occurred_at: string;
   created_at: string;
 }
 
-interface ActivitySummary {
+export interface ActivitySummary {
   totalEvents: number;
   uniqueDays: number;
   recentEvents: number;
@@ -23,182 +40,156 @@ interface ActivitySummary {
   activityBreakdown: Record<string, number>;
 }
 
-interface TimelinePoint {
+export interface TimelinePoint {
   date: string;
   count: number;
 }
 
-interface CreateActivityEvent {
+export interface CreateActivityEventInput {
   event_type: string;
   value?: number | null;
   unit?: string | null;
-  metadata?: Record<string, any> | null;
+  metadata?: Record<string, unknown> | null;
   occurred_at?: string | null;
   profile_id?: string | null;
 }
 
-const db = supabase as any;
+/* ============================================================
+ * Query keys
+ * ============================================================ */
 
-/**
- * Get user's activity events
- */
+export const activityEventsKey = ['activity-events'] as const;
+export const activitySummaryKey = ['activity-summary'] as const;
+export const activityTimelineKey = (days: number) =>
+  ['activity-timeline', days] as const;
+
+/* ============================================================
+ * Internal API helper
+ *
+ * NOTE: This duplicates a small amount of logic from
+ * `@/lib/integrations/api.ts` because that module does not currently
+ * export its low-level `request` helper. If the request helper is
+ * eventually exported, this can be replaced with a single import.
+ * ============================================================ */
+
+const API_BASE = (
+  import.meta.env.VITE_API_URL ?? 'http://localhost:8787'
+).replace(/\/+$/, '');
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((init?.headers as Record<string, string> | undefined) ?? {}),
+  };
+
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    let message = `Request failed with status ${response.status}.`;
+    try {
+      const body = (await response.json()) as
+        | { error?: string; message?: string }
+        | undefined;
+      if (body?.error) message = body.error;
+      else if (body?.message) message = body.message;
+    } catch {
+      // Response body was not JSON — keep the default message.
+    }
+    throw new Error(message);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
+}
+
+/* ============================================================
+ * Queries
+ * ============================================================ */
+
+/** Fetches the user's activity events, newest first. */
 export function useActivityEvents() {
   return useQuery({
-    queryKey: ['activity-events'],
-    queryFn: async (): Promise<ActivityEvent[]> => {
-      const { data, error } = await db
-        .from('activity_events')
-        .select('*')
-        .order('occurred_at', { ascending: false });
-      
-      if (error) throw new Error(error.message);
-      return (data ?? []) as ActivityEvent[];
-    },
+    queryKey: activityEventsKey,
+    queryFn: () => apiFetch<ActivityEvent[]>('/api/activity'),
   });
 }
 
-/**
- * Get activity summary statistics
- */
+/** Fetches aggregate activity statistics. */
 export function useActivitySummary() {
   return useQuery({
-    queryKey: ['activity-summary'],
-    queryFn: async (): Promise<ActivitySummary> => {
-      const response = await fetch('/api/activity/summary', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      return response.json();
-    },
+    queryKey: activitySummaryKey,
+    queryFn: () => apiFetch<ActivitySummary>('/api/activity/summary'),
   });
 }
 
-/**
- * Get activity timeline for charting
- */
-export function useActivityTimeline(days: number = 90) {
+/** Fetches a daily activity timeline for charting. */
+export function useActivityTimeline(days = 90) {
   return useQuery({
-    queryKey: ['activity-timeline', days],
-    queryFn: async (): Promise<TimelinePoint[]> => {
-      const response = await fetch(`/api/activity/timeline?days=${days}`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.timeline as TimelinePoint[];
-    },
+    queryKey: activityTimelineKey(days),
+    queryFn: () =>
+      apiFetch<{ timeline: TimelinePoint[] }>(
+        `/api/activity/timeline?days=${days}`,
+      ).then((data) => data.timeline),
   });
 }
 
+/* ============================================================
+ * Mutations
+ * ============================================================ */
+
 /**
- * Create a new activity event via server API
+ * Creates a new activity event.
+ * Invalidates events, summary, and every timeline query on success.
  */
 export function useCreateActivityEvent() {
-  return useMutation({
-    mutationFn: async (event: CreateActivityEvent) => {
-      const response = await fetch('/api/activity', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(event),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create activity');
-      }
-
-      return response.json();
-    },
-  });
-}
-
-/**
- * Create a new activity event directly via Supabase
- */
-export function useCreateActivity() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async (event: CreateActivityEvent) => {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        throw new Error('You must be signed in to create activity');
-      }
-
-      const { data, error } = await db
-        .from('activity_events')
-        .insert({
-          user_id: userData.user.id,
-          profile_id: event.profile_id ?? null,
-          event_type: event.event_type,
-          value: event.value ?? null,
-          unit: event.unit ?? null,
-          metadata: event.metadata ?? {},
-          occurred_at: event.occurred_at ?? new Date().toISOString(),
-        })
-        .select('*')
-        .single();
-
-      if (error) throw new Error(error.message);
-      return data as ActivityEvent;
-    },
+    mutationFn: (event: CreateActivityEventInput) =>
+      apiFetch<ActivityEvent>('/api/activity', {
+        method: 'POST',
+        body: JSON.stringify(event),
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity-events'] });
-      queryClient.invalidateQueries({ queryKey: ['activity-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
+      queryClient.invalidateQueries({ queryKey: activityEventsKey });
+      queryClient.invalidateQueries({ queryKey: activitySummaryKey });
+      queryClient.invalidateQueries({
+        queryKey: ['activity-timeline'],
+        exact: false,
+      });
     },
   });
 }
 
-/**
- * Delete an activity event
- */
+/** Deletes an activity event by id. */
 export function useDeleteActivity() {
   const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await db
-        .from('activity_events')
-        .delete()
-        .eq('id', id);
 
-      if (error) throw new Error(error.message);
-    },
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<void>(`/api/activity/${id}`, { method: 'DELETE' }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activity-events'] });
-      queryClient.invalidateQueries({ queryKey: ['activity-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
-    },
-  });
-}
-
-/**
- * Sync activity from a connected profile
- */
-export function useSyncActivity() {
-  return useMutation({
-    mutationFn: async ({ profileId, since }: { profileId: string; since?: string }) => {
-      // This would call a server function to sync activity from a connected profile
-      // For now, we'll just return success
-      return { success: true };
+      queryClient.invalidateQueries({ queryKey: activityEventsKey });
+      queryClient.invalidateQueries({ queryKey: activitySummaryKey });
+      queryClient.invalidateQueries({
+        queryKey: ['activity-timeline'],
+        exact: false,
+      });
     },
   });
 }

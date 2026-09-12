@@ -29,47 +29,76 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
-type FeatureCardProps = {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-  items: string[];
-  href?: string;
-  accent?: string;
+/* ============================================================
+ * Feature card
+ * ============================================================ */
+
+type AccentKey = 'violet' | 'blue' | 'orange' | 'emerald' | 'cyan';
+
+const ACCENT_CLASSES: Record<
+  AccentKey,
+  { gradient: string; icon: string; hover: string }
+> = {
+  violet: {
+    gradient:
+      'from-violet-500/[0.12] via-violet-500/[0.03] to-transparent',
+    icon: 'text-violet-600 dark:text-violet-400',
+    hover: 'hover:border-violet-500/40',
+  },
+  blue: {
+    gradient: 'from-blue-500/[0.12] via-blue-500/[0.03] to-transparent',
+    icon: 'text-blue-600 dark:text-blue-400',
+    hover: 'hover:border-blue-500/40',
+  },
+  orange: {
+    gradient:
+      'from-orange-500/[0.12] via-orange-500/[0.03] to-transparent',
+    icon: 'text-orange-600 dark:text-orange-400',
+    hover: 'hover:border-orange-500/40',
+  },
+  emerald: {
+    gradient:
+      'from-emerald-500/[0.12] via-emerald-500/[0.03] to-transparent',
+    icon: 'text-emerald-600 dark:text-emerald-400',
+    hover: 'hover:border-emerald-500/40',
+  },
+  cyan: {
+    gradient: 'from-cyan-500/[0.12] via-cyan-500/[0.03] to-transparent',
+    icon: 'text-cyan-600 dark:text-cyan-400',
+    hover: 'hover:border-cyan-500/40',
+  },
 };
 
-const FeatureCard = ({
+function FeatureCard({
   icon: Icon,
   title,
   description,
   items,
   href = '#',
   accent = 'violet',
-}: FeatureCardProps) => {
-  const accentClasses: Record<string, string> = {
-    violet:
-      'from-violet-500/20 via-violet-500/5 to-transparent text-violet-300',
-    blue:
-      'from-blue-500/20 via-blue-500/5 to-transparent text-blue-300',
-    orange:
-      'from-orange-500/20 via-orange-500/5 to-transparent text-orange-300',
-    emerald:
-      'from-emerald-500/20 via-emerald-500/5 to-transparent text-emerald-300',
-    cyan:
-      'from-cyan-500/20 via-cyan-500/5 to-transparent text-cyan-300',
-  };
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  items: string[];
+  href?: string;
+  accent?: AccentKey;
+}) {
+  const styles = ACCENT_CLASSES[accent];
 
   return (
     <Link to={href} className="group block h-full">
-      <Card className="relative h-full overflow-hidden border-border/70 bg-card/60 transition-all duration-300 hover:-translate-y-1 hover:border-violet-500/30 hover:bg-card/80 hover:shadow-xl hover:shadow-violet-950/20">
+      <Card
+        className={`relative h-full overflow-hidden border-border bg-card transition-all duration-300 hover:-translate-y-1 ${styles.hover}`}
+      >
         <div
-          className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${accentClasses[accent]}`}
+          className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${styles.gradient}`}
         />
 
         <CardContent className="relative flex h-full flex-col p-5">
           <div className="flex items-start justify-between">
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.06] bg-gradient-to-br ${accentClasses[accent]}`}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted/60 ${styles.icon}`}
             >
               <Icon className="h-5 w-5" />
             </div>
@@ -89,7 +118,7 @@ const FeatureCard = ({
                 key={item}
                 className="flex items-center gap-2 text-xs text-muted-foreground"
               >
-                <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400/80" />
+                <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 {item}
               </div>
             ))}
@@ -103,9 +132,13 @@ const FeatureCard = ({
       </Card>
     </Link>
   );
-};
+}
 
-const EmptyDataCard = ({
+/* ============================================================
+ * Empty data card
+ * ============================================================ */
+
+function EmptyDataCard({
   icon: Icon,
   title,
   description,
@@ -117,12 +150,12 @@ const EmptyDataCard = ({
   description: string;
   action: string;
   href: string;
-}) => {
+}) {
   return (
-    <Card className="border-border/70 bg-card/50">
+    <Card className="border-border bg-card/60">
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.03]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/60">
             <Icon className="h-5 w-5 text-muted-foreground" />
           </div>
 
@@ -134,11 +167,7 @@ const EmptyDataCard = ({
             </p>
 
             <Link to={href}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4 border-border/70 bg-white/[0.02] hover:bg-white/[0.05]"
-              >
+              <Button variant="outline" size="sm" className="mt-4">
                 {action}
                 <ArrowRight className="ml-2 h-3.5 w-3.5" />
               </Button>
@@ -148,13 +177,14 @@ const EmptyDataCard = ({
       </CardContent>
     </Card>
   );
-};
+}
+
+/* ============================================================
+ * Main
+ * ============================================================ */
 
 export function OverviewView() {
-  const {
-    data: profiles,
-    isLoading: profilesLoading,
-  } = useTrackedProfiles();
+  const { data: profiles, isLoading: profilesLoading } = useTrackedProfiles();
 
   const connectedProfiles = useMemo(() => {
     if (!Array.isArray(profiles)) return [];
@@ -169,6 +199,8 @@ export function OverviewView() {
     day: 'numeric',
     year: 'numeric',
   });
+
+  /* ---------- Loading skeleton ---------- */
 
   if (profilesLoading) {
     return (
@@ -186,10 +218,7 @@ export function OverviewView() {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div
-                key={item}
-                className="h-56 rounded-2xl bg-muted"
-              />
+              <div key={item} className="h-56 rounded-2xl bg-muted" />
             ))}
           </div>
         </div>
@@ -197,14 +226,16 @@ export function OverviewView() {
     );
   }
 
+  /* ---------- Main render ---------- */
+
   return (
     <div className="relative min-h-full overflow-hidden">
-      {/* Ambient background */}
+      {/* Ambient background — theme-aware */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden"
       >
-        <div className="absolute -left-40 top-0 h-96 w-96 rounded-full bg-violet-600/[0.07] blur-3xl" />
+        <div className="absolute -left-40 top-0 h-96 w-96 rounded-full bg-violet-500/[0.07] blur-3xl" />
         <div className="absolute right-0 top-20 h-80 w-80 rounded-full bg-blue-500/[0.05] blur-3xl" />
         <div className="absolute bottom-0 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-purple-500/[0.04] blur-3xl" />
       </div>
@@ -213,10 +244,10 @@ export function OverviewView() {
         {/* HEADER */}
         <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
           <div>
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
-                className="border-violet-500/20 bg-violet-500/[0.05] text-violet-300"
+                className="border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300"
               >
                 <Sparkles className="mr-1.5 h-3 w-3" />
                 Personal Intelligence
@@ -225,9 +256,9 @@ export function OverviewView() {
               {hasConnections && (
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-400"
+                  className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                 >
-                  <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   {connectedCount} connected
                 </Badge>
               )}
@@ -239,12 +270,12 @@ export function OverviewView() {
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
               {hasConnections
-                ? 'Your connected activity, progress and insights — all in one place.'
+                ? 'Your connected activity, progress, and insights — all in one place.'
                 : 'Explore your digital activity now. Connect your platforms when you want APIVue to build your personal history.'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start rounded-lg border border-border/70 bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 self-start rounded-lg border border-border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" />
             {today}
           </div>
@@ -253,17 +284,17 @@ export function OverviewView() {
         {/* HERO / CONNECTION STATUS */}
         <section>
           {!hasConnections ? (
-            <Card className="relative overflow-hidden border-violet-500/20 bg-gradient-to-br from-violet-950/25 via-card/70 to-card/50">
+            <Card className="relative overflow-hidden border-violet-500/30 bg-gradient-to-br from-violet-500/[0.06] via-card to-card">
               <div
                 aria-hidden="true"
-                className="pointer-events-none absolute right-[-10%] top-[-80%] h-[500px] w-[500px] rounded-full bg-violet-500/[0.08] blur-3xl"
+                className="pointer-events-none absolute -right-1/4 -top-3/4 h-[500px] w-[500px] rounded-full bg-violet-500/[0.08] blur-3xl"
               />
 
               <CardContent className="relative p-6 sm:p-8 lg:p-10">
                 <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
                   <div className="max-w-2xl">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-500/20 bg-violet-500/10">
-                      <Radar className="h-6 w-6 text-violet-300" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-violet-500/30 bg-violet-500/10">
+                      <Radar className="h-6 w-6 text-violet-600 dark:text-violet-400" />
                     </div>
 
                     <h2 className="mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -274,12 +305,12 @@ export function OverviewView() {
                       APIVue has no connected account data yet. You can still
                       explore public information and compare profiles, or
                       connect your own platforms to unlock personal history,
-                      analytics and AI guidance.
+                      analytics, and AI guidance.
                     </p>
 
                     <div className="mt-6 flex flex-wrap gap-3">
                       <Link to="/dashboard/integrations">
-                        <Button className="gap-2 bg-white text-black hover:bg-zinc-200">
+                        <Button className="gap-2">
                           <Plus className="h-4 w-4" />
                           Connect your first platform
                           <ArrowRight className="h-4 w-4" />
@@ -287,20 +318,17 @@ export function OverviewView() {
                       </Link>
 
                       <Link to="/dashboard/explore">
-                        <Button
-                          variant="outline"
-                          className="gap-2 border-white/10 bg-white/[0.03] hover:bg-white/[0.07]"
-                        >
-                          <Compass className="h-4 w-4 text-violet-300" />
+                        <Button variant="outline" className="gap-2">
+                          <Compass className="h-4 w-4" />
                           Explore public data
                         </Button>
                       </Link>
                     </div>
                   </div>
 
-                  {/* Connection pipeline */}
+                  {/* Pipeline */}
                   <div className="w-full max-w-sm lg:w-80">
-                    <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-5 backdrop-blur-sm">
+                    <div className="rounded-2xl border border-border bg-muted/40 p-5">
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         APIVue pipeline
                       </p>
@@ -326,13 +354,10 @@ export function OverviewView() {
                           const Icon = step.icon;
 
                           return (
-                            <div
-                              key={step.title}
-                              className="flex items-center gap-3"
-                            >
+                            <div key={step.title} className="flex items-center gap-3">
                               <div className="relative">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.04]">
-                                  <Icon className="h-4 w-4 text-violet-300" />
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-background">
+                                  <Icon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                                 </div>
 
                                 {index < 2 && (
@@ -344,7 +369,6 @@ export function OverviewView() {
                                 <p className="text-sm font-medium">
                                   {step.title}
                                 </p>
-
                                 <p className="text-xs text-muted-foreground">
                                   {step.desc}
                                 </p>
@@ -359,33 +383,26 @@ export function OverviewView() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="border-emerald-500/15 bg-gradient-to-br from-emerald-950/15 via-card/70 to-card/50">
+            <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.05] via-card to-card">
               <CardContent className="p-6">
                 <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
                   <div className="flex items-start gap-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-                      <Database className="h-5 w-5 text-emerald-400" />
+                      <Database className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
 
                     <div>
-                      <h2 className="font-semibold">
-                        Your connected data
-                      </h2>
-
+                      <h2 className="font-semibold">Your connected data</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {connectedCount} platform
-                        {connectedCount === 1 ? '' : 's'} connected.
-                        APIVue can now begin building your activity history.
+                        {connectedCount === 1 ? '' : 's'} connected. APIVue
+                        can now begin building your activity history.
                       </p>
                     </div>
                   </div>
 
                   <Link to="/dashboard/integrations">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 border-emerald-500/20 hover:bg-emerald-500/[0.06]"
-                    >
+                    <Button variant="outline" size="sm" className="gap-2">
                       Manage connections
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
@@ -398,94 +415,80 @@ export function OverviewView() {
 
         {/* QUICK ACTIONS */}
         <section>
-          <div className="mb-4 flex items-end justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Explore
-              </p>
-
-              <h2 className="mt-1 text-lg font-semibold">
-                What do you want to do?
-              </h2>
-            </div>
+          <div className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Explore
+            </p>
+            <h2 className="mt-1 text-lg font-semibold">
+              What do you want to do?
+            </h2>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Link to="/dashboard/explore" className="group">
-              <Card className="border-border/70 bg-card/50 transition-all duration-300 hover:border-violet-500/30 hover:bg-card/80">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
-                    <Compass className="h-5 w-5 text-violet-300" />
-                  </div>
+            {[
+              {
+                href: '/dashboard/explore',
+                icon: Compass,
+                title: 'Explore data',
+                desc: 'Analyze public profiles',
+                accent: 'text-violet-600 dark:text-violet-400',
+                bg: 'bg-violet-500/10',
+                border: 'hover:border-violet-500/40',
+              },
+              {
+                href: '/dashboard/compare',
+                icon: GitCompareArrows,
+                title: 'Compare',
+                desc: 'Compare profiles or periods',
+                accent: 'text-blue-600 dark:text-blue-400',
+                bg: 'bg-blue-500/10',
+                border: 'hover:border-blue-500/40',
+              },
+              {
+                href: '/dashboard/analytics',
+                icon: BarChart3,
+                title: 'Analytics',
+                desc: 'Understand your activity',
+                accent: 'text-cyan-600 dark:text-cyan-400',
+                bg: 'bg-cyan-500/10',
+                border: 'hover:border-cyan-500/40',
+              },
+              {
+                href: '/dashboard/ai-insights',
+                icon: Brain,
+                title: 'AI insights',
+                desc: 'Understand what to do next',
+                accent: 'text-orange-600 dark:text-orange-400',
+                bg: 'bg-orange-500/10',
+                border: 'hover:border-orange-500/40',
+              },
+            ].map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link key={action.href} to={action.href} className="group">
+                  <Card
+                    className={`border-border bg-card transition-all duration-300 ${action.border}`}
+                  >
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${action.bg}`}
+                      >
+                        <Icon className={`h-5 w-5 ${action.accent}`} />
+                      </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">Explore data</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Analyze public profiles
-                    </p>
-                  </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{action.title}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {action.desc}
+                        </p>
+                      </div>
 
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1" />
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link to="/dashboard/compare" className="group">
-              <Card className="border-border/70 bg-card/50 transition-all duration-300 hover:border-blue-500/30 hover:bg-card/80">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
-                    <GitCompareArrows className="h-5 w-5 text-blue-300" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">Compare</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Compare profiles or periods
-                    </p>
-                  </div>
-
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1" />
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link to="/dashboard/analytics" className="group">
-              <Card className="border-border/70 bg-card/50 transition-all duration-300 hover:border-cyan-500/30 hover:bg-card/80">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10">
-                    <BarChart3 className="h-5 w-5 text-cyan-300" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">Analytics</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Understand your activity
-                    </p>
-                  </div>
-
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1" />
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link to="/dashboard/ai-insights" className="group">
-              <Card className="border-border/70 bg-card/50 transition-all duration-300 hover:border-orange-500/30 hover:bg-card/80">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10">
-                    <Brain className="h-5 w-5 text-orange-300" />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">AI insights</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      Understand what to do next
-                    </p>
-                  </div>
-
-                  <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1" />
-                </CardContent>
-              </Card>
-            </Link>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-1" />
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </section>
 
@@ -495,11 +498,9 @@ export function OverviewView() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Your digital journey
             </p>
-
             <h2 className="mt-1 text-xl font-semibold">
               What APIVue can understand
             </h2>
-
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Connect the platforms that matter to you. APIVue turns activity
               from different places into one understandable picture.
@@ -519,7 +520,6 @@ export function OverviewView() {
               href="/dashboard/progress"
               accent="blue"
             />
-
             <FeatureCard
               icon={Activity}
               title="DSA / Competitive Programming"
@@ -532,7 +532,6 @@ export function OverviewView() {
               href="/dashboard/progress"
               accent="orange"
             />
-
             <FeatureCard
               icon={ShieldCheck}
               title="Cybersecurity"
@@ -545,7 +544,6 @@ export function OverviewView() {
               href="/dashboard/progress"
               accent="emerald"
             />
-
             <FeatureCard
               icon={GraduationCap}
               title="Learning"
@@ -558,7 +556,6 @@ export function OverviewView() {
               href="/dashboard/progress"
               accent="violet"
             />
-
             <FeatureCard
               icon={Target}
               title="Goals"
@@ -571,7 +568,6 @@ export function OverviewView() {
               href="/dashboard/goals"
               accent="cyan"
             />
-
             <FeatureCard
               icon={Users}
               title="Social comparison"
@@ -587,13 +583,12 @@ export function OverviewView() {
           </div>
         </section>
 
-        {/* ANALYTICS / COMPARE / AI */}
+        {/* INTELLIGENCE LAYER */}
         <section>
           <div className="mb-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Intelligence layer
             </p>
-
             <h2 className="mt-1 text-xl font-semibold">
               From activity to understanding
             </h2>
@@ -606,16 +601,11 @@ export function OverviewView() {
               description={
                 hasConnections
                   ? 'Your connected platforms are ready to contribute to your activity history. Analytics will grow as APIVue collects real data.'
-                  : 'Daily, weekly and monthly analytics become meaningful once APIVue has real activity history from your connected platforms.'
+                  : 'Daily, weekly, and monthly analytics become meaningful once APIVue has real activity history from your connected platforms.'
               }
-              action={
-                hasConnections
-                  ? 'View analytics'
-                  : 'Learn about analytics'
-              }
+              action={hasConnections ? 'View analytics' : 'Learn about analytics'}
               href="/dashboard/analytics"
             />
-
             <EmptyDataCard
               icon={GitCompareArrows}
               title="Compare your progress"
@@ -623,7 +613,6 @@ export function OverviewView() {
               action="Open comparison"
               href="/dashboard/compare"
             />
-
             <EmptyDataCard
               icon={Brain}
               title="AI intelligence"
@@ -640,13 +629,12 @@ export function OverviewView() {
 
         {/* ACTIVITY / GOALS */}
         <section className="grid gap-4 lg:grid-cols-2">
-          <Card className="border-border/70 bg-card/50">
+          <Card className="border-border bg-card/60">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04]">
-                  <Activity className="h-5 w-5 text-blue-300" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60">
+                  <Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-
                 <div>
                   <h2 className="font-semibold">Recent activity</h2>
                   <p className="text-xs text-muted-foreground">
@@ -655,43 +643,33 @@ export function OverviewView() {
                 </div>
               </div>
 
-              <div className="mt-6 rounded-xl border border-dashed border-border/70 bg-black/10 p-6 text-center">
+              <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
                 <Activity className="mx-auto h-8 w-8 text-muted-foreground/40" />
-
                 <h3 className="mt-3 text-sm font-medium">
                   {hasConnections
                     ? 'Your activity history is being built'
                     : 'No activity connected yet'}
                 </h3>
-
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">
                   {hasConnections
                     ? 'Once APIVue receives activity from your connected platforms, real events will appear here.'
                     : 'Connect a platform to let APIVue collect the activity you authorize and build your personal history.'}
                 </p>
-
                 <Link to="/dashboard/integrations">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                  >
-                    {hasConnections
-                      ? 'Manage data sources'
-                      : 'Connect a platform'}
+                  <Button variant="outline" size="sm" className="mt-4">
+                    {hasConnections ? 'Manage data sources' : 'Connect a platform'}
                   </Button>
                 </Link>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/70 bg-card/50">
+          <Card className="border-border bg-card/60">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.04]">
-                  <Target className="h-5 w-5 text-cyan-300" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60">
+                  <Target className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
-
                 <div>
                   <h2 className="font-semibold">Goals</h2>
                   <p className="text-xs text-muted-foreground">
@@ -700,24 +678,17 @@ export function OverviewView() {
                 </div>
               </div>
 
-              <div className="mt-6 rounded-xl border border-dashed border-border/70 bg-black/10 p-6 text-center">
+              <div className="mt-6 rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
                 <Target className="mx-auto h-8 w-8 text-muted-foreground/40" />
-
                 <h3 className="mt-3 text-sm font-medium">
                   Create your first goal
                 </h3>
-
                 <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-muted-foreground">
-                  Goals can start manually and become automatically measurable
-                  when connected platform data is available.
+                  Goals can start manually and become automatically
+                  measurable when connected platform data is available.
                 </p>
-
                 <Link to="/dashboard/goals">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                  >
+                  <Button variant="outline" size="sm" className="mt-4">
                     Create a goal
                   </Button>
                 </Link>
@@ -727,31 +698,27 @@ export function OverviewView() {
         </section>
 
         {/* PRIVACY */}
-        <Card className="overflow-hidden border-border/70 bg-card/40">
+        <Card className="overflow-hidden border-border bg-card/60">
           <CardContent className="p-5 sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
-                <Lock className="h-5 w-5 text-emerald-400" />
+                <Lock className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
 
               <div className="min-w-0 flex-1">
                 <h2 className="font-medium">
                   Your connected data should stay yours.
                 </h2>
-
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   APIVue should only access the information you authorize.
-                  Private data must be protected by the platform architecture,
-                  with clear controls over what is stored, analyzed and shared.
+                  Private data must be protected by the platform
+                  architecture, with clear controls over what is stored,
+                  analyzed, and shared.
                 </p>
               </div>
 
               <Link to="/dashboard/integrations">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 gap-2"
-                >
+                <Button variant="ghost" size="sm" className="shrink-0 gap-2">
                   Privacy & connections
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Button>
@@ -760,14 +727,11 @@ export function OverviewView() {
           </CardContent>
         </Card>
 
-        {/* FOOTER STATUS */}
-        <div className="flex flex-col gap-3 border-t border-border/60 pt-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        {/* FOOTER */}
+        <div className="flex flex-col gap-3 border-t border-border pt-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="h-3.5 w-3.5 text-violet-400" />
-
-            <span>
-              APIVue intelligence is powered by your actual data.
-            </span>
+            <Zap className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+            <span>APIVue intelligence is powered by your actual data.</span>
           </div>
 
           <Link

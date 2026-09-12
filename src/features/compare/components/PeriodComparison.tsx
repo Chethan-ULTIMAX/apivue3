@@ -1,132 +1,186 @@
-import { useState } from "react";
-import { TrendingUp, Calendar, ArrowLeftRight, X, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { TrackedProfile } from "@/lib/integrations/registry";
-import { formatMetric, getIntegration } from "@/lib/integrations/registry";
-import { ProfileAvatar, PlatformChip, chartAxisStyle, chartGridStroke, chartTooltipStyle } from "@/components/apivue/ProfileBits";
+import { useMemo, useState } from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { Calendar, TrendingDown, TrendingUp, X } from 'lucide-react';
 
-const SERIES_COLORS = ["hsl(var(--primary))", "hsl(199 89% 48%)", "hsl(142 71% 45%)", "hsl(25 95% 53%)", "hsl(280 67% 60%)"];
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  ProfileAvatar,
+  PlatformChip,
+  chartAxisStyle,
+  chartGridStroke,
+  chartTooltipStyle,
+} from '@/components/apivue/ProfileBits';
+import { useProfileSnapshots } from '@/hooks/use-profiles';
+import type { TrackedProfile } from '@/lib/integrations/registry';
+import { getIntegration } from '@/lib/integrations/registry';
+
+const SERIES_COLOR = 'hsl(var(--primary))';
 
 interface PeriodComparisonProps {
   profile: TrackedProfile;
   onClose: () => void;
 }
 
-interface DateRange {
-  from: Date;
-  to: Date;
+type PeriodKey = 7 | 30 | 60 | 90;
+
+interface SummaryRow {
+  label: string;
+  current: number;
+  previous: number;
+  change: number | null;
 }
 
+/* ============================================================
+ * Helpers
+ * ============================================================ */
+
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString();
+}
+
+/* ============================================================
+ * Component
+ * ============================================================ */
+
 export function PeriodComparison({ profile, onClose }: PeriodComparisonProps) {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: new Date(new Date().setDate(new Date().getDate() - 30)),
-    to: new Date(),
-  });
+  const [period, setPeriod] = useState<PeriodKey>(30);
 
-  const [comparisonMode, setComparisonMode] = useState <'time' | 'custom'>('time');
-  const [customPeriods, setCustomPeriods] = useState<DateRange[]>([
-    { from: new Date(new Date().setDate(new Date().getDate() - 60)), to: new Date(new Date().setDate(new Date().getDate() - 30)) },
-    { from: new Date(new Date().setDate(new Date().getDate() - 30)), to: new Date() },
-  ]);
+  const { data: snapshots = [], isLoading } = useProfileSnapshots(profile.id);
 
-  // Extract activity data for the profile
-  const activityData = profile.data?.activity ?? [];
-  const metrics = profile.data?.metrics ?? [];
+  /* ---------- Split snapshots into current + previous windows ---------- */
 
-  // Filter activity data by date range
-  const filterActivityByRange = (range: DateRange | undefined) => {
-    if (!range || !range.from || !range.to) return activityData;
-    const fromDate = range.from.toISOString().split('T')[0];
-    const toDate = range.to.toISOString().split('T')[0];
-    return activityData.filter((a) => a.date >= fromDate && a.date <= toDate);
-  };
+  const { currentSnaps, previousSnaps } = useMemo(() => {
+    const currentStart = daysAgoIso(period);
+    const previousStart = daysAgoIso(period * 2);
+    const currentEnd = new Date().toISOString();
 
-  const currentActivity = filterActivityByRange(dateRange);
-  const previousActivity = filterActivityByRange({
-    from: new Date(new Date().setDate(new Date().getDate() - 60)),
-    to: new Date(new Date().setDate(new Date().getDate() - 30)),
-  });
+    const current: typeof snapshots = [];
+    const previous: typeof snapshots = [];
 
-  // Calculate comparison metrics
-  const calculateSummary = (activity: typeof activityData) => {
-    const total = activity.reduce((sum, a) => sum + a.count, 0);
-    const average = activity.length > 0 ? Math.round(total / activity.length) : 0;
-    const peak = Math.max(...activity.map((a) => a.count), 0);
-    const days = activity.length;
-    const activeDays = activity.filter((a) => a.count > 0).length;
-    return { total, average, peak, days, activeDays };
-  };
+    for (const s of snapshots) {
+      if (s.captured_at >= currentStart && s.captured_at <= currentEnd) {
+        current.push(s);
+      } else if (
+        s.captured_at >= previousStart &&
+        s.captured_at < currentStart
+      ) {
+        previous.push(s);
+      }
+    }
 
-  const currentSummary = calculateSummary(currentActivity);
-  const previousSummary = calculateSummary(previousActivity);
+    return { currentSnaps: current, previousSnaps: previous };
+  }, [snapshots, period]);
 
-  // Calculate percentage changes
-  const calculateChange = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
-  };
+  /* ---------- Metric deltas from real snapshots ---------- */
 
-  const metricsWithChanges = metrics
-    .filter((m) => typeof m.value === "number")
-    .map((m) => {
-      // For demo purposes, we'll simulate historical values
-      // In a real implementation, this would come from snapshots
-      const previousValue = typeof m.value === "number" ? m.value * 0.8 : 0;
-      const currentValue = typeof m.value === "number" ? m.value : 0;
-      return {
-        ...m,
-        change: calculateChange(currentValue, previousValue),
-        previousValue,
-        currentValue,
-      };
-    });
+  const metricRows: SummaryRow[] = useMemo(() => {
+    if (currentSnaps.length === 0 && previousSnaps.length === 0) return [];
 
-  // Build time series data for charting
-  const timeSeriesData = activityData
-    .filter((a) => {
-      if (!dateRange?.from || !dateRange?.to) return true;
-      const fromDate = dateRange.from.toISOString().split('T')[0];
-      const toDate = dateRange.to.toISOString().split('T')[0];
-      return a.date >= fromDate && a.date <= toDate;
-    })
-    .map((a) => ({
-      date: a.date,
-      count: a.count,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    // Collect all metric keys across both windows.
+    const keys = new Set<string>();
+    for (const s of [...currentSnaps, ...previousSnaps]) {
+      for (const k of Object.keys(s.metrics ?? {})) keys.add(k);
+    }
 
-  // Metrics comparison data
-  const metricsComparisonData = metricsWithChanges.map((m) => ({
-    metric: m.label,
-    Current: m.currentValue,
-    Previous: m.previousValue,
-    Change: m.change,
-  }));
+    const takeLatest = (snaps: typeof snapshots, key: string): number | null => {
+      if (snaps.length === 0) return null;
+      const sorted = [...snaps].sort((a, b) =>
+        a.captured_at.localeCompare(b.captured_at),
+      );
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        const v = sorted[i].metrics?.[key];
+        if (typeof v === 'number' && Number.isFinite(v)) return v;
+      }
+      return null;
+    };
 
-  // Helper to format date for display
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
+    const takeFirst = (snaps: typeof snapshots, key: string): number | null => {
+      if (snaps.length === 0) return null;
+      const sorted = [...snaps].sort((a, b) =>
+        a.captured_at.localeCompare(b.captured_at),
+      );
+      for (const s of sorted) {
+        const v = s.metrics?.[key];
+        if (typeof v === 'number' && Number.isFinite(v)) return v;
+      }
+      return null;
+    };
 
-  // Preset date ranges
-  const handlePresetSelect = (days: number) => {
-    const to = new Date();
-    const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
-    setDateRange({ from, to });
-  };
+    const rows: SummaryRow[] = [];
+    for (const key of keys) {
+      const label =
+        profile.data?.metrics?.find((m) => m.key === key)?.label ??
+        key.replace(/_/g, ' ');
+
+      const currentStart = takeFirst(currentSnaps, key);
+      const currentEnd = takeLatest(currentSnaps, key);
+      const previousStart = takeFirst(previousSnaps, key);
+      const previousEnd = takeLatest(previousSnaps, key);
+
+      if (
+        currentStart === null &&
+        currentEnd === null &&
+        previousStart === null &&
+        previousEnd === null
+      ) {
+        continue;
+      }
+
+      const currentValue = currentStart ?? currentEnd ?? 0;
+      const previousValue = previousStart ?? previousEnd ?? 0;
+      const change =
+        previousValue === 0
+          ? currentValue > 0
+            ? null // Cannot compute % from zero.
+            : 0
+          : Math.round(
+              ((currentValue - previousValue) / previousValue) * 1000,
+            ) / 10;
+
+      rows.push({
+        label,
+        current: currentValue,
+        previous: previousValue,
+        change,
+      });
+    }
+
+    return rows.sort((a, b) =>
+      Math.abs(b.change ?? 0) - Math.abs(a.change ?? 0),
+    );
+  }, [currentSnaps, previousSnaps, profile.data?.metrics]);
+
+  /* ---------- Activity timeline in the selected period ---------- */
+
+  const timelineData = useMemo(() => {
+    const activity = profile.data?.activity ?? [];
+    const from = daysAgoIso(period).slice(0, 10);
+    const to = new Date().toISOString().slice(0, 10);
+    return activity
+      .filter((a) => a.date >= from && a.date <= to)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [profile.data?.activity, period]);
+
+  /* ---------- Empty state ---------- */
+
+  const notEnoughHistory =
+    !isLoading && currentSnaps.length === 0 && previousSnaps.length === 0;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto">
-      <div className="min-h-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
-        <Card className="bg-card border-border rounded-lg">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
+      <div className="mx-auto min-h-full max-w-6xl p-4 sm:p-6 lg:p-8">
+        <Card className="border-border bg-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               <ProfileAvatar profile={profile} size="md" />
@@ -134,214 +188,180 @@ export function PeriodComparison({ profile, onClose }: PeriodComparisonProps) {
                 <CardTitle className="text-lg">
                   {profile.display_name || profile.handle}
                 </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {getIntegration(profile.platform).name} - Period Comparison
-                </p>
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  <PlatformChip platform={profile.platform} />
+                  <span>·</span>
+                  <span>Period comparison</span>
+                </div>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8" aria-label="Close">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8"
+              aria-label="Close"
+            >
               <X className="h-4 w-4" />
             </Button>
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* Comparison Controls */}
-            <div className="flex flex-wrap gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    <span className="text-sm">
-                      {dateRange ? `${formatDate(dateRange.from)} - ${formatDate(dateRange.to)}` : 'Select a date range'}
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={(range) => {
-                      if (range?.from && range?.to) {
-                        setDateRange({ from: range.from, to: range.to });
-                      }
-                    }}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              <div className="flex flex-wrap gap-1">
-                {[
-                  { days: 7, label: "7d" },
-                  { days: 30, label: "30d" },
-                  { days: 60, label: "60d" },
-                  { days: 90, label: "90d" },
-                ].map((preset) => (
-                  <Button
-                    key={preset.days}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs px-2"
-                    onClick={() => handlePresetSelect(preset.days)}
-                  >
-                    {preset.label}
-                  </Button>
-                ))}
-              </div>
+            {/* Period picker */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                Compare last
+              </span>
+              {([7, 30, 60, 90] as PeriodKey[]).map((p) => (
+                <Button
+                  key={p}
+                  variant={period === p ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 px-2.5 text-xs"
+                  onClick={() => setPeriod(p)}
+                >
+                  {p} days
+                </Button>
+              ))}
             </div>
 
-            {/* Summary */}
-            <div className="border border-border rounded-lg p-5 bg-card/40">
-              <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Period Summary
-              </h3>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{currentSummary.total}</p>
-                  <p className="text-xs text-muted-foreground">Total Events</p>
-                  <p className="text-xs text-muted-foreground">{currentSummary.days} days</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{currentSummary.average}</p>
-                  <p className="text-xs text-muted-foreground">Event Average</p>
-                  {previousSummary.average > 0 && (
-                    <p className="text-xs ">
-                      <span className={calculateChange(currentSummary.average, previousSummary.average) > 0 ? "text-emerald-400" : "text-destructive"}>
-                        {calculateChange(currentSummary.average, previousSummary.average) > 0 && '+'}
-                        {calculateChange(currentSummary.average, previousSummary.average)}%
-                      </span>
-                      vs prev
-                    </p>
-                  )}
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{currentSummary.activeDays}</p>
-                  <p className="text-xs text-muted-foreground">Active Days</p>
-                  {previousSummary.activeDays > 0 && (
-                    <p className="text-xs ">
-                      <span className={calculateChange(currentSummary.activeDays, previousSummary.activeDays) > 0 ? "text-emerald-400" : "text-destructive"}>
-                        {calculateChange(currentSummary.activeDays, previousSummary.activeDays) > 0 && '+'}
-                        {calculateChange(currentSummary.activeDays, previousSummary.activeDays)}%
-                      </span>
-                      vs prev
-                    </p>
-                  )}
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold">{currentSummary.peak}</p>
-                  <p className="text-xs text-muted-foreground">Peak Activity</p>
-                  {previousSummary.peak > 0 && (
-                    <p className="text-xs ">
-                      <span className={calculateChange(currentSummary.peak, previousSummary.peak) > 0 ? "text-emerald-400" : "text-destructive"}>
-                        {calculateChange(currentSummary.peak, previousSummary.peak) > 0 && '+'}
-                        {calculateChange(currentSummary.peak, previousSummary.peak)}%
-                      </span>
-                      vs prev
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Metrics Comparison Table */}
-            {metricsWithChanges.length > 0 && (
-              <div className="border border-border rounded-lg p-5 bg-card/40">
-                <h3 className="text-sm font-semibold mb-4">Metrics Comparison</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-left text-muted-foreground">
-                        <th className="py-2 pr-4 font-medium">Metric</th>
-                        <th className="py-2 pr-4 font-medium text-right">Previous</th>
-                        <th className="py-2 pr-4 font-medium text-right">Current</th>
-                        <th className="py-2 pr-4 font-medium text-right">Change</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {metricsWithChanges.map((m) => (
-                        <tr key={m.key} className="border-t border-border">
-                          <td className="py-2 pr-4 text-muted-foreground">{m.label}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatMetric(m.previousValue, m.format)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatMetric(m.currentValue, m.format)}</td>
-                          <td
-                            className={`py-2 pr-4 text-right tabular-nums ${
-                              m.change > 0
-                                ? "text-emerald-400 font-medium"
-                                : m.change < 0
-                                  ? "text-destructive font-medium"
-                                  : "text-muted-foreground"
-                            }`}
-                          >
-                            {m.change > 0 && '+'}{m.change}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Activity Timeline Chart */}
-            {timeSeriesData.length > 0 && (
-              <div className="border border-border rounded-lg p-5 bg-card/40">
-                <h3 className="text-sm font-semibold mb-4">Activity Timeline</h3>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={timeSeriesData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
-                    <XAxis dataKey="date" tick={chartAxisStyle} axisLine={false} tickLine={false} />
-                    <YAxis tick={chartAxisStyle} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={chartTooltipStyle} />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke={SERIES_COLORS[0]}
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Comparison Bar Chart */}
-            {metricsComparisonData.length > 0 && (
-              <div className="border border-border rounded-lg p-5 bg-card/40">
-                <h3 className="text-sm font-semibold mb-4">Metrics: Current vs Previous</h3>
-                <ResponsiveContainer width="100%" height={Math.max(260, metricsComparisonData.length * 40)}>
-                  <BarChart data={metricsComparisonData} layout="vertical" margin={{ left: 120 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} horizontal={false} />
-                    <XAxis type="number" tick={chartAxisStyle} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="metric" tick={chartAxisStyle} axisLine={false} tickLine={false} width={120} />
-                    <Tooltip contentStyle={chartTooltipStyle} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="Previous" fill="hsl(var(--muted-foreground))" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="Current" fill={SERIES_COLORS[0]} radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Empty State */}
-            {timeSeriesData.length === 0 && metricsWithChanges.length === 0 && (
-              <div className="border border-border rounded-lg p-8 bg-card/40 text-center">
+            {notEnoughHistory ? (
+              <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
                 <TrendingUp className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                <p className="mt-3 text-sm font-medium">No data available for comparison</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Select a different time range to see activity data
+                <p className="mt-3 text-sm font-medium">
+                  Not enough history yet
+                </p>
+                <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                  Period comparison uses real snapshots. Refresh this
+                  profile regularly so APIVue can build a history to compare
+                  across periods. APIVue never fabricates previous values.
                 </p>
               </div>
+            ) : (
+              <>
+                {/* Snapshot coverage note */}
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  Showing {currentSnaps.length} snapshot
+                  {currentSnaps.length === 1 ? '' : 's'} in the last{' '}
+                  {period} days, compared against{' '}
+                  {previousSnaps.length} in the preceding {period} days.
+                  {previousSnaps.length === 0 && (
+                    <span className="ml-1 font-medium text-amber-600 dark:text-amber-400">
+                      No data in the previous window — deltas cannot be
+                      calculated yet.
+                    </span>
+                  )}
+                </div>
+
+                {/* Metrics comparison table */}
+                {metricRows.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card/60 p-5">
+                    <h3 className="mb-4 text-sm font-semibold">
+                      Metrics: previous vs current
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-muted-foreground">
+                            <th className="py-2 pr-4 font-medium">Metric</th>
+                            <th className="py-2 pr-4 text-right font-medium">
+                              Previous
+                            </th>
+                            <th className="py-2 pr-4 text-right font-medium">
+                              Current
+                            </th>
+                            <th className="py-2 pr-4 text-right font-medium">
+                              Change
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {metricRows.map((m) => (
+                            <tr key={m.label} className="border-t border-border">
+                              <td className="py-2 pr-4 text-muted-foreground">
+                                {m.label}
+                              </td>
+                              <td className="py-2 pr-4 text-right tabular-nums">
+                                {m.previous.toLocaleString()}
+                              </td>
+                              <td className="py-2 pr-4 text-right tabular-nums">
+                                {m.current.toLocaleString()}
+                              </td>
+                              <td
+                                className={`py-2 pr-4 text-right tabular-nums ${
+                                  m.change === null
+                                    ? 'text-muted-foreground'
+                                    : m.change > 0
+                                      ? 'font-medium text-emerald-600 dark:text-emerald-400'
+                                      : m.change < 0
+                                        ? 'font-medium text-destructive'
+                                        : 'text-muted-foreground'
+                                }`}
+                              >
+                                {m.change === null ? (
+                                  '—'
+                                ) : (
+                                  <>
+                                    {m.change > 0 && '+'}
+                                    {m.change}%
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Activity timeline */}
+                {timelineData.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card/60 p-5">
+                    <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+                      {metricRows.some(
+                        (m) => m.change !== null && m.change > 0,
+                      ) ? (
+                        <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                      )}
+                      Activity in the last {period} days
+                    </h3>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <LineChart data={timelineData}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={chartGridStroke}
+                        />
+                        <XAxis
+                          dataKey="date"
+                          tick={chartAxisStyle}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={chartAxisStyle}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip contentStyle={chartTooltipStyle} />
+                        <Line
+                          type="monotone"
+                          dataKey="count"
+                          stroke={SERIES_COLOR}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Quick Actions */}
-            <div className="flex flex-wrap gap-3 pt-4 border-t border-border">
+            <div className="flex flex-wrap gap-3 border-t border-border pt-4">
               <Button variant="outline" size="sm" onClick={onClose}>
                 Close
               </Button>

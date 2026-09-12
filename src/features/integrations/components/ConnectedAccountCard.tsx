@@ -9,9 +9,7 @@ export function ConnectedAccountCard({
   provider,
   account,
 }: ConnectedAccountCardProps) {
-  if (!account.connected) {
-    return null;
-  }
+  if (!account.connected) return null;
 
   const name =
     account.displayName ||
@@ -19,40 +17,38 @@ export function ConnectedAccountCard({
     account.handle ||
     'Connected account';
 
-  const identifier =
-    account.username ||
-    account.handle ||
-    '';
+  const identifier = account.username || account.handle || '';
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+    <div className="rounded-2xl border border-border bg-card/60 p-5">
       <div className="flex items-center gap-4">
         {account.avatarUrl ? (
           <img
             src={account.avatarUrl}
             alt=""
-            className="h-12 w-12 rounded-xl border border-white/10 object-cover"
+            className="h-12 w-12 rounded-xl border border-border object-cover"
+            loading="lazy"
           />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-semibold text-white/60">
-            {name
-              .charAt(0)
-              .toUpperCase()}
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-muted text-lg font-semibold text-muted-foreground">
+            {name.charAt(0).toUpperCase()}
           </div>
         )}
 
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-wider text-white/30">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
             {provider}
           </p>
 
-          <p className="mt-1 truncate font-medium text-white">
+          <p className="mt-1 truncate font-medium text-foreground">
             {name}
           </p>
 
-          <p className="mt-0.5 text-xs text-white/40">
-            @{identifier}
-          </p>
+          {identifier && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              @{identifier}
+            </p>
+          )}
         </div>
       </div>
     </div>

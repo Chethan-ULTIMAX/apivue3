@@ -1,3 +1,6 @@
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
 interface ConnectionStatusProps {
   connected: boolean;
   username?: string;
@@ -15,41 +18,46 @@ export function ConnectionStatus({
   onDisconnect,
   loading = false,
 }: ConnectionStatusProps) {
+  const identifier = username ?? handle;
+
   if (connected) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-400/10 bg-emerald-400/[0.04] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.04] p-4">
         <div>
-          <p className="text-xs text-white/35">
+          <p className="text-xs text-muted-foreground">
             Connected account
           </p>
-
-          <p className="mt-1 text-sm font-medium text-white">
-            @{username ?? handle}
-          </p>
+          {identifier && (
+            <p className="mt-1 text-sm font-medium text-foreground">
+              @{identifier}
+            </p>
+          )}
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onDisconnect}
           disabled={loading}
-          className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-white/60 transition hover:border-red-400/20 hover:bg-red-400/5 hover:text-red-300 disabled:opacity-50"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
-          {loading
-            ? 'Disconnecting...'
-            : 'Disconnect'}
-        </button>
+          {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+          {loading ? 'Disconnecting…' : 'Disconnect'}
+        </Button>
       </div>
     );
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={onConnect}
       disabled={loading}
-      className="w-full rounded-xl bg-violet-500 px-4 py-3 text-sm font-medium text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+      className="w-full"
     >
-      {loading ? 'Connecting...' : 'Connect'}
-    </button>
+      {loading && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+      {loading ? 'Connecting…' : 'Connect'}
+    </Button>
   );
 }

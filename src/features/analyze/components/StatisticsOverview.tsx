@@ -13,34 +13,53 @@ type StatisticsOverviewProps = {
   report: ProgressReport;
 };
 
-const statistics = [
-  {
-    icon: Hash,
-    title: 'Total activity',
-    description: 'Combined measurable activity across connected sources.',
-  },
-  {
-    icon: Activity,
-    title: 'Active days',
-    description: 'Days where meaningful activity was recorded.',
-  },
-  {
-    icon: BarChart3,
-    title: 'Activity rate',
-    description: 'How consistently activity occurs over a selected period.',
-  },
-  {
-    icon: Database,
-    title: 'Data points',
-    description: 'Historical observations available to the analytics engine.',
-  },
-];
-
-export function StatisticsOverview({
-  report,
-}: StatisticsOverviewProps) {
+export function StatisticsOverview({ report }: StatisticsOverviewProps) {
   const hasData = report.profileCount > 0;
-  const values = [report.activity.totalEvents, report.activity.activeDays, report.activity.totalDays ? Math.round((report.activity.activeDays / report.activity.totalDays) * 100) : 0, report.snapshotCount];
+  const activityRate =
+    report.activity.totalDays > 0
+      ? Math.round(
+          (report.activity.activeDays / report.activity.totalDays) * 100,
+        )
+      : 0;
+
+  const stats = [
+    {
+      key: 'total-activity',
+      icon: Hash,
+      title: 'Total activity',
+      value: report.activity.totalEvents,
+      suffix: '',
+      description:
+        'Combined measurable activity across connected sources.',
+    },
+    {
+      key: 'active-days',
+      icon: Activity,
+      title: 'Active days',
+      value: report.activity.activeDays,
+      suffix: '',
+      description: 'Days where meaningful activity was recorded.',
+    },
+    {
+      key: 'activity-rate',
+      icon: BarChart3,
+      title: 'Activity rate',
+      value: activityRate,
+      suffix: '%',
+      description:
+        'How consistently activity occurs over a selected period.',
+    },
+    {
+      key: 'data-points',
+      icon: Database,
+      title: 'Data points',
+      value: report.snapshotCount,
+      suffix: '',
+      description:
+        'Historical observations available to the analytics engine.',
+    },
+  ];
+
   return (
     <section>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -61,27 +80,25 @@ export function StatisticsOverview({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statistics.map((stat) => {
+        {stats.map((stat) => {
           const Icon = stat.icon;
 
           return (
-            <Card
-              key={stat.title}
-              className="border-border/70 bg-card/50"
-            >
+            <Card key={stat.key} className="border-border bg-card/60">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xs font-medium text-muted-foreground">
                     {stat.title}
                   </CardTitle>
 
-                  <Icon className="h-4 w-4 text-violet-300" />
+                  <Icon className="h-4 w-4 text-violet-500 dark:text-violet-300" />
                 </div>
               </CardHeader>
 
               <CardContent>
                 <div className="text-2xl font-bold tracking-tight">
-                  {values[statistics.indexOf(stat)].toLocaleString()}{statistics.indexOf(stat) === 2 ? '%' : ''}
+                  {stat.value.toLocaleString()}
+                  {stat.suffix}
                 </div>
 
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">

@@ -32,17 +32,13 @@ export function ExploreView() {
     setData(null);
 
     try {
-      const result = await explorePublicProfile(
-        platform,
-        username
-      );
-
+      const result = await explorePublicProfile(platform, username);
       setData(result);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Failed to fetch public profile.'
+          : 'Failed to fetch public profile.',
       );
     } finally {
       setLoading(false);
@@ -66,26 +62,21 @@ export function ExploreView() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-violet-400">
-          Explore
-        </p>
+        <p className="text-sm font-medium text-primary">Explore</p>
 
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
           Explore public profiles
         </h1>
 
-        <p className="mt-2 max-w-2xl text-sm text-white/50">
-          Explore publicly available data without connecting
-          an account.
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Look up any public profile from GitHub, Codeforces, LeetCode,
+          Codewars, or Stack Overflow. No account connection required.
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-        <div className="grid gap-4 md:grid-cols-[220px_1fr_auto]">
-          <PlatformSelector
-            value={platform}
-            onChange={setPlatform}
-          />
+      <div className="rounded-2xl border border-border bg-card/40 p-5">
+        <div className="grid gap-4 md:grid-cols-[240px_1fr_auto]">
+          <PlatformSelector value={platform} onChange={setPlatform} />
 
           <ProfileSearch
             value={username}
@@ -95,18 +86,20 @@ export function ExploreView() {
             platform={platform}
           />
 
-          <Button
-            type="button"
-            onClick={handleExplore}
-            disabled={loading}
-            className="rounded-xl bg-violet-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? 'Exploring...' : 'Explore'}
-          </Button>
+          <div className="flex items-end">
+            <Button
+              type="button"
+              onClick={handleExplore}
+              disabled={loading}
+              className="w-full rounded-xl px-5 py-3 text-sm font-medium md:w-auto"
+            >
+              {loading ? 'Exploring…' : 'Explore'}
+            </Button>
+          </div>
         </div>
 
         {error && (
-          <div className="mt-4 rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-sm text-red-300">
+          <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
             {error}
           </div>
         )}
@@ -121,8 +114,9 @@ export function ExploreView() {
           <div className="flex flex-wrap gap-3">
             <Button
               type="button"
+              variant="outline"
               onClick={handleAnalyze}
-              className="rounded-xl bg-blue-500/10 border border-blue-500/20 px-4 py-2.5 text-sm font-medium text-blue-300 hover:bg-blue-500/20 transition flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl"
             >
               <BarChart3 className="h-4 w-4" />
               Analyze profile
@@ -130,8 +124,9 @@ export function ExploreView() {
 
             <Button
               type="button"
+              variant="outline"
               onClick={handleCompare}
-              className="rounded-xl bg-violet-500/10 border border-violet-500/20 px-4 py-2.5 text-sm font-medium text-violet-300 hover:bg-violet-500/20 transition flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl"
             >
               <GitCompareArrows className="h-4 w-4" />
               Compare profile

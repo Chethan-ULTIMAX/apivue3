@@ -1,4 +1,4 @@
-import type { PublicPlatform } from './types';
+import type { PublicDataResult, PublicPlatform } from './types';
 import { fetchGitHubPublicProfile } from './fetchers/github';
 import { fetchCodeforcesPublicProfile } from './fetchers/codeforces';
 import { fetchLeetCodePublicProfile } from './fetchers/leetcode';
@@ -15,9 +15,12 @@ export interface PublicPlatformDefinition {
   name: string;
   description: string;
   placeholder: string;
-  fetch: (username: string) => Promise<Awaited<ReturnType<
-    typeof fetchGitHubPublicProfile
-  >>>;
+  /**
+   * Fetches + normalizes a public profile for this platform.
+   * Always returns the fully normalized `PublicDataResult` shape —
+   * never the raw platform response.
+   */
+  fetch: (username: string) => Promise<PublicDataResult>;
 }
 
 export const publicPlatformRegistry: Record<
@@ -30,8 +33,8 @@ export const publicPlatformRegistry: Record<
     description: 'Explore publicly available GitHub activity.',
     placeholder: 'GitHub username',
     fetch: async (username) => {
-      const data = await fetchGitHubPublicProfile(username);
-      return normalizeGitHubData(data);
+      const raw = await fetchGitHubPublicProfile(username);
+      return normalizeGitHubData(raw);
     },
   },
 
@@ -41,8 +44,8 @@ export const publicPlatformRegistry: Record<
     description: 'Explore public competitive-programming activity.',
     placeholder: 'Codeforces handle',
     fetch: async (username) => {
-      const data = await fetchCodeforcesPublicProfile(username);
-      return normalizeCodeforcesData(data);
+      const raw = await fetchCodeforcesPublicProfile(username);
+      return normalizeCodeforcesData(raw);
     },
   },
 
@@ -52,8 +55,8 @@ export const publicPlatformRegistry: Record<
     description: 'Explore publicly available LeetCode activity.',
     placeholder: 'LeetCode username',
     fetch: async (username) => {
-      const data = await fetchLeetCodePublicProfile(username);
-      return normalizeLeetCodeData(data);
+      const raw = await fetchLeetCodePublicProfile(username);
+      return normalizeLeetCodeData(raw);
     },
   },
 
@@ -63,8 +66,8 @@ export const publicPlatformRegistry: Record<
     description: 'Explore publicly available Codewars activity.',
     placeholder: 'Codewars username',
     fetch: async (username) => {
-      const data = await fetchCodewarsPublicProfile(username);
-      return normalizeCodewarsData(data);
+      const raw = await fetchCodewarsPublicProfile(username);
+      return normalizeCodewarsData(raw);
     },
   },
 
@@ -74,12 +77,17 @@ export const publicPlatformRegistry: Record<
     description: 'Explore publicly available Stack Overflow activity.',
     placeholder: 'Stack Overflow user ID (numeric)',
     fetch: async (userId) => {
-      const data = await fetchStackOverflowPublicProfile(userId);
-      return normalizeStackOverflowData(data);
+      const raw = await fetchStackOverflowPublicProfile(userId);
+      return normalizeStackOverflowData(raw);
     },
   },
 };
 
+/**
+ * Returns the platform definition, or throws if the platform is unknown.
+ * Callers should normally only pass values from the `PublicPlatform` union,
+ * so this guard exists mainly for runtime safety (e.g. URL params).
+ */
 export function getPublicPlatform(
   platform: PublicPlatform
 ): PublicPlatformDefinition {
