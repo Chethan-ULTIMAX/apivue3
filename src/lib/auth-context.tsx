@@ -15,7 +15,6 @@ import {
 } from 'react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { processGitHubOAuthSession } from '@/lib/integrations/api';
 
 export interface AuthUser {
   id: string;
@@ -103,11 +102,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (sessionError) throw sessionError;
         setUser(session?.user ? mapUser(session.user) : null);
         setError(null);
-        if (session?.provider_token) {
-          void processGitHubOAuthSession().catch((err) => {
-            if (mounted) setError(err instanceof Error ? err.message : 'GitHub private sync failed.');
-          });
-        }
       } catch (err) {
         if (!mounted) return;
         setUser(null);
@@ -126,13 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ? mapUser(session.user) : null);
       setError(null);
       setLoading(false);
-      if (session?.provider_token) {
-        window.setTimeout(() => {
-          void processGitHubOAuthSession().catch((err) => {
-            if (mounted) setError(err instanceof Error ? err.message : 'GitHub private sync failed.');
-          });
-        }, 0);
-      }
     });
 
     void initialize();
