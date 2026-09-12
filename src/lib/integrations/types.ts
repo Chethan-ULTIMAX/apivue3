@@ -1,6 +1,9 @@
 export type IntegrationId =
   | 'github'
-  | 'codeforces';
+  | 'codeforces'
+  | 'leetcode'
+  | 'codewars'
+  | 'stackoverflow';
 
 export interface ConnectedAccount {
   connected: boolean;
@@ -17,4 +20,7 @@ export interface ConnectedAccount {
 export interface IntegrationStatus {
   github: ConnectedAccount;
   codeforces: ConnectedAccount;
+  leetcode: ConnectedAccount;
+  codewars: ConnectedAccount;
+  stackoverflow: ConnectedAccount;
 }

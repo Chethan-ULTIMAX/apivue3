@@ -39,6 +39,15 @@ import {
   saveCodeforcesConnection,
   getCodeforcesConnection,
   deleteCodeforcesConnection,
+  saveLeetCodeConnection,
+  getLeetCodeConnection,
+  deleteLeetCodeConnection,
+  saveCodewarsConnection,
+  getCodewarsConnection,
+  deleteCodewarsConnection,
+  saveStackOverflowConnection,
+  getStackOverflowConnection,
+  deleteStackOverflowConnection,
 } from '../storage/connections';
 
 import { env } from '../env';
@@ -77,28 +86,22 @@ router.get('/', async (req, res) => {
     return;
   }
 
-  const { data: persistedGithub } = await supabaseAdmin
-    .from('connected_accounts')
-    .select('username, display_name, avatar_url, profile_url, connected_at, last_synced_at')
-    .eq('user_id', user.id)
-    .eq('provider', 'github')
-    .maybeSingle();
-
-  const github = getGitHubConnection(sessionId);
-
-  const codeforces =
-    getCodeforcesConnection(sessionId);
+  const github = await getGitHubConnection(sessionId, user.id);
+  const codeforces = await getCodeforcesConnection(sessionId, user.id);
+  const leetcode = await getLeetCodeConnection(sessionId, user.id);
+  const codewars = await getCodewarsConnection(sessionId, user.id);
+  const stackoverflow = await getStackOverflowConnection(sessionId, user.id);
 
   res.json({
-    github: persistedGithub || github
+    github: github
       ? {
           connected: true,
-          username: persistedGithub?.username ?? github?.username,
-          displayName: persistedGithub?.display_name ?? github?.displayName,
-          avatarUrl: persistedGithub?.avatar_url ?? github?.avatarUrl,
-          profileUrl: persistedGithub?.profile_url ?? github?.profileUrl,
-          connectedAt: persistedGithub?.connected_at ?? github?.connectedAt,
-          lastSyncedAt: persistedGithub?.last_synced_at,
+          username: github.username,
+          displayName: github.displayName,
+          avatarUrl: github.avatarUrl,
+          profileUrl: github.profileUrl,
+          connectedAt: github.connectedAt,
+          lastSyncedAt: github.lastSyncedAt,
         }
       : {
           connected: false,
@@ -112,6 +115,45 @@ router.get('/', async (req, res) => {
           avatarUrl: codeforces.avatarUrl,
           profileUrl: codeforces.profileUrl,
           connectedAt: codeforces.connectedAt,
+        }
+      : {
+          connected: false,
+        },
+
+    leetcode: leetcode
+      ? {
+          connected: true,
+          handle: leetcode.handle,
+          displayName: leetcode.displayName,
+          avatarUrl: leetcode.avatarUrl,
+          profileUrl: leetcode.profileUrl,
+          connectedAt: leetcode.connectedAt,
+        }
+      : {
+          connected: false,
+        },
+
+    codewars: codewars
+      ? {
+          connected: true,
+          handle: codewars.handle,
+          displayName: codewars.displayName,
+          avatarUrl: codewars.avatarUrl,
+          profileUrl: codewars.profileUrl,
+          connectedAt: codewars.connectedAt,
+        }
+      : {
+          connected: false,
+        },
+
+    stackoverflow: stackoverflow
+      ? {
+          connected: true,
+          handle: stackoverflow.handle,
+          displayName: stackoverflow.displayName,
+          avatarUrl: stackoverflow.avatarUrl,
+          profileUrl: stackoverflow.profileUrl,
+          connectedAt: stackoverflow.connectedAt,
         }
       : {
           connected: false,
@@ -350,6 +392,8 @@ router.post('/github/sync', async (req, res) => {
 router.post(
   '/codeforces/connect',
   async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
@@ -371,23 +415,24 @@ router.post(
     }
 
     try {
-      const user =
+      const cfUser =
         await getCodeforcesUser(handle);
 
-      saveCodeforcesConnection(
+      await saveCodeforcesConnection(
         sessionId,
         {
           provider: 'codeforces',
-          handle: user.handle,
+          userId: user.id,
+          handle: cfUser.handle,
           displayName:
-            [user.firstName, user.lastName]
+            [cfUser.firstName, cfUser.lastName]
               .filter(Boolean)
               .join(' ') || null,
           avatarUrl:
-            user.avatar ?? null,
+            cfUser.avatar ?? null,
           profileUrl:
             `https://codeforces.com/profile/${encodeURIComponent(
-              user.handle
+              cfUser.handle
             )}`,
           connectedAt:
             new Date().toISOString(),
@@ -397,16 +442,16 @@ router.post(
       res.json({
         success: true,
         account: {
-          handle: user.handle,
+          handle: cfUser.handle,
           displayName:
-            [user.firstName, user.lastName]
+            [cfUser.firstName, cfUser.lastName]
               .filter(Boolean)
               .join(' ') || null,
           avatarUrl:
-            user.avatar ?? null,
+            cfUser.avatar ?? null,
           profileUrl:
             `https://codeforces.com/profile/${encodeURIComponent(
-              user.handle
+              cfUser.handle
             )}`,
         },
       });
@@ -428,14 +473,16 @@ router.post(
  */
 router.post(
   '/codeforces/disconnect',
-  (req, res) => {
+  async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
       return;
     }
 
-    deleteCodeforcesConnection(sessionId);
+    await deleteCodeforcesConnection(sessionId, user.id);
 
     res.json({
       success: true,
@@ -450,6 +497,8 @@ router.post(
 router.post(
   '/leetcode/connect',
   async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
@@ -473,9 +522,27 @@ router.post(
     try {
       const profile = await getLeetCodeUserProfile(handle);
 
+      await saveLeetCodeConnection(
+        sessionId,
+        {
+          provider: 'leetcode',
+          userId: user.id,
+          handle: profile.username,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          profileUrl: profile.profileUrl,
+          connectedAt: new Date().toISOString(),
+        }
+      );
+
       res.json({
         success: true,
-        profile,
+        account: {
+          handle: profile.username,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          profileUrl: profile.profileUrl,
+        },
       });
     } catch (error) {
       console.error(error);
@@ -497,6 +564,8 @@ router.post(
 router.post(
   '/codewars/connect',
   async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
@@ -520,9 +589,27 @@ router.post(
     try {
       const profile = await getCodewarsUserProfile(handle);
 
+      await saveCodewarsConnection(
+        sessionId,
+        {
+          provider: 'codewars',
+          userId: user.id,
+          handle: profile.username,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          profileUrl: profile.profileUrl,
+          connectedAt: new Date().toISOString(),
+        }
+      );
+
       res.json({
         success: true,
-        profile,
+        account: {
+          handle: profile.username,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          profileUrl: profile.profileUrl,
+        },
       });
     } catch (error) {
       console.error(error);
@@ -544,6 +631,8 @@ router.post(
 router.post(
   '/stackoverflow/connect',
   async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
@@ -567,9 +656,27 @@ router.post(
     try {
       const profile = await getStackOverflowUserProfile(handle);
 
+      await saveStackOverflowConnection(
+        sessionId,
+        {
+          provider: 'stackoverflow',
+          userId: user.id,
+          handle: profile.username,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          profileUrl: profile.profileUrl,
+          connectedAt: new Date().toISOString(),
+        }
+      );
+
       res.json({
         success: true,
-        profile,
+        account: {
+          handle: profile.username,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+          profileUrl: profile.profileUrl,
+        },
       });
     } catch (error) {
       console.error(error);
@@ -589,12 +696,16 @@ router.post(
  */
 router.post(
   '/stackoverflow/disconnect',
-  (req, res) => {
+  async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
       return;
     }
+
+    await deleteStackOverflowConnection(sessionId, user.id);
 
     res.json({
       success: true,
@@ -607,12 +718,16 @@ router.post(
  */
 router.post(
   '/codewars/disconnect',
-  (req, res) => {
+  async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
       return;
     }
+
+    await deleteCodewarsConnection(sessionId, user.id);
 
     res.json({
       success: true,
@@ -625,12 +740,16 @@ router.post(
  */
 router.post(
   '/leetcode/disconnect',
-  (req, res) => {
+  async (req, res) => {
+    const user = await requireSupabaseUser(req, res);
+    if (!user) return;
     const sessionId = requireSession(req, res);
 
     if (!sessionId) {
       return;
     }
+
+    await deleteLeetCodeConnection(sessionId, user.id);
 
     res.json({
       success: true,

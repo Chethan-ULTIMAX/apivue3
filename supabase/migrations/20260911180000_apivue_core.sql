@@ -118,7 +118,10 @@ CREATE TABLE IF NOT EXISTS public.connected_accounts (
         CHECK (
             provider IN (
                 'github',
-                'codeforces'
+                'codeforces',
+                'leetcode',
+                'codewars',
+                'stackoverflow'
             )
         ),
 

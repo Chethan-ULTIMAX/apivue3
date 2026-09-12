@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getIntegration, integrations } from "@/lib/integrations/registry";
 import { useRemoveProfile, useSyncProfile, useTrackedProfiles } from "@/hooks/use-profiles";
 import { ProfileAvatar } from "@/components/apivue/ProfileBits";
-import { connectGitHub, disconnectGitHub, getIntegrationStatus, syncGitHub } from "@/lib/integrations/api";
+import { connectGitHub, disconnectGitHub, getIntegrationStatus, syncGitHub, connectCodeforces, disconnectCodeforces, connectLeetCode, disconnectLeetCode, connectCodewars, disconnectCodewars, connectStackOverflow, disconnectStackOverflow } from "@/lib/integrations/api";
 import type { IntegrationStatus } from "@/lib/integrations/types";
 
 export function IntegrationsView() {
@@ -39,6 +39,63 @@ export function IntegrationsView() {
     }
   };
 
+  const handleConnect = async (integrationId: string, handle: string) => {
+    setConnecting(true);
+    setConnectionError(null);
+    try {
+      switch (integrationId) {
+        case 'github':
+          await connectGitHub();
+          break;
+        case 'codeforces':
+          await connectCodeforces(handle);
+          break;
+        case 'leetcode':
+          await connectLeetCode(handle);
+          break;
+        case 'codewars':
+          await connectCodewars(handle);
+          break;
+        case 'stackoverflow':
+          await connectStackOverflow(handle);
+          break;
+      }
+      await loadAccountStatus();
+    } catch (error) {
+      setConnectionError((error as Error).message);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async (integrationId: string) => {
+    setConnecting(true);
+    try {
+      switch (integrationId) {
+        case 'github':
+          await disconnectGitHub();
+          break;
+        case 'codeforces':
+          await disconnectCodeforces();
+          break;
+        case 'leetcode':
+          await disconnectLeetCode();
+          break;
+        case 'codewars':
+          await disconnectCodewars();
+          break;
+        case 'stackoverflow':
+          await disconnectStackOverflow();
+          break;
+      }
+      await loadAccountStatus();
+    } catch (error) {
+      setConnectionError((error as Error).message);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-4 sm:p-6">
       <div>
@@ -58,19 +115,50 @@ export function IntegrationsView() {
         {integrations.map((integration) => {
           const Icon = integration.icon;
           const connected = profiles.filter((profile) => profile.platform === integration.id);
-          const githubConnected = integration.id === "github" && accountStatus?.github.connected;
+          const accountConnected = accountStatus?.[integration.id as keyof IntegrationStatus]?.connected;
+          const account = accountStatus?.[integration.id as keyof IntegrationStatus];
+          const displayHandle = account?.handle ?? account?.username;
+          const displayName = account?.displayName;
+          const connectedAt = account?.connectedAt;
           return <div key={integration.id} className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted"><Icon className="h-5 w-5" style={{ color: integration.accent }} /></div><div><h2 className="font-semibold">{integration.name}</h2><p className="text-xs text-muted-foreground">{integration.authType === "oauth" ? "Public profile sync available" : "Public handle sync available"}</p></div></div>
-              <span className={`rounded-full px-2 py-1 text-[11px] ${githubConnected || connected.length ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>{githubConnected ? "Connected" : connected.length ? `${connected.length} public profiles` : "Not connected"}</span>
+              <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted"><Icon className="h-5 w-5" style={{ color: integration.accent }} /></div><div><h2 className="font-semibold">{integration.name}</h2><p className="text-xs text-muted-foreground">{integration.authType === "oauth" ? "OAuth authentication" : "Public handle verification"}</p></div></div>
+              <span className={`rounded-full px-2 py-1 text-[11px] ${accountConnected || connected.length ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>{accountConnected ? "Connected" : connected.length ? `${connected.length} public profiles` : "Not connected"}</span>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">{integration.description}</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              {integration.id === "github" ? (
-                githubConnected ? <><Button size="sm" variant="outline" onClick={async () => { setConnecting(true); try { await syncGitHub(); await loadAccountStatus(); } catch (error) { setConnectionError((error as Error).message); } finally { setConnecting(false); } }} disabled={connecting}>{connecting ? "Syncing..." : "Sync now"}</Button><Button size="sm" variant="outline" onClick={async () => { await disconnectGitHub(); await loadAccountStatus(); }}>Disconnect GitHub</Button></> : <Button size="sm" disabled={connecting} onClick={async () => { setConnecting(true); setConnectionError(null); try { await connectGitHub(); } catch (error) { setConnectionError((error as Error).message); setConnecting(false); } }}> {connecting ? "Connecting..." : "Connect GitHub"} </Button>
-              ) : <><span className="rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">Public data integration</span><Link to="/dashboard/explore"><Button size="sm" variant="outline">Explore public profile</Button></Link></>}
+              {accountConnected ? (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => handleDisconnect(integration.id)} disabled={connecting}>
+                    {connecting ? "Disconnecting..." : `Disconnect ${integration.name}`}
+                  </Button>
+                  {integration.id === "github" && (
+                    <Button size="sm" variant="outline" onClick={async () => { setConnecting(true); try { await syncGitHub(); await loadAccountStatus(); } catch (error) { setConnectionError((error as Error).message); } finally { setConnecting(false); } }} disabled={connecting}>
+                      {connecting ? "Syncing..." : "Sync now"}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="rounded-md border border-border px-3 py-2 text-xs text-muted-foreground">{integration.authType === "oauth" ? "OAuth integration" : "Public data integration"}</span>
+                  <Link to="/dashboard/explore"><Button size="sm" variant="outline">Explore public profile</Button></Link>
+                  <input
+                    type="text"
+                    placeholder={integration.handlePlaceholder}
+                    className="rounded-md border border-border px-3 py-2 text-sm w-48"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleConnect(integration.id, e.currentTarget.value);
+                      }
+                    }}
+                  />
+                  <Button size="sm" disabled={connecting} onClick={() => handleConnect(integration.id, (document.querySelector(`input[placeholder="${integration.handlePlaceholder}"]`) as HTMLInputElement)?.value ?? '')}>
+                    {connecting ? "Connecting..." : `Connect ${integration.name}`}
+                  </Button>
+                </>
+              )}
             </div>
-            {githubConnected && accountStatus?.github.username && <p className="mt-3 text-xs text-muted-foreground">Connected as @{accountStatus.github.username}{accountStatus.github.connectedAt ? ` · ${new Date(accountStatus.github.connectedAt).toLocaleDateString()}` : ""}</p>}
+            {accountConnected && displayHandle && <p className="mt-3 text-xs text-muted-foreground">Connected as @{displayHandle}{displayName ? ` (${displayName})` : ''}{connectedAt ? ` · ${new Date(connectedAt).toLocaleDateString()}` : ''}</p>}
             {connected.length > 0 && <div className="mt-5 space-y-3 border-t border-border pt-4">{connected.map((profile) => <div key={profile.id} className="flex items-center gap-3"><ProfileAvatar profile={profile} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{profile.display_name || profile.handle}</p><p className="text-xs text-muted-foreground">@{profile.handle} · {profile.last_synced_at ? `Synced ${new Date(profile.last_synced_at).toLocaleString()}` : "Not synced"}</p>{profile.sync_error && <p className="text-xs text-destructive">{profile.sync_error}</p>}</div>{profile.profile_url && <a href={profile.profile_url} target="_blank" rel="noreferrer" title="Open profile"><ExternalLink className="h-4 w-4 text-muted-foreground" /></a>}<button title="Sync profile" disabled={busyId === profile.id} onClick={() => refresh(profile.id, profile.platform, profile.handle)} className="text-muted-foreground hover:text-foreground"><RefreshCw className={`h-4 w-4 ${busyId === profile.id ? "animate-spin" : ""}`} /></button><button title="Disconnect profile" onClick={() => remove.mutate(profile.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button></div>)}</div>}
           </div>;
         })}

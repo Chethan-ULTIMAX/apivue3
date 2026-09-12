@@ -1,20 +1,70 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { GitCompareArrows } from "lucide-react";
+import { GitCompareArrows, Plus, Search } from "lucide-react";
 import { useTrackedProfiles } from "@/hooks/use-profiles";
 import { formatMetric, getIntegration } from "@/lib/integrations/registry";
 import { PlatformChip, ProfileAvatar, SkeletonPanel, chartAxisStyle, chartGridStroke, chartTooltipStyle } from "@/components/apivue/ProfileBits";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { explorePublicProfile, type PublicDataResult, type PublicPlatform } from "@/lib/public-data";
+import { toast } from "@/hooks/use-toast";
 
 const SERIES_COLORS = ["hsl(var(--primary))", "hsl(199 89% 48%)", "hsl(142 71% 45%)", "hsl(25 95% 53%)", "hsl(280 67% 60%)"];
 
+interface CompareProfile {
+  id: string;
+  platform: string;
+  handle: string;
+  display_name?: string;
+  avatar_url?: string | null;
+  profile_url?: string;
+  data?: any;
+  source: 'tracked' | 'explored';
+}
+
 export function CompareView() {
-  const { data: profiles = [], isLoading } = useTrackedProfiles();
+  const location = useLocation();
+  const { data: trackedProfiles = [], isLoading } = useTrackedProfiles();
   const [selected, setSelected] = useState<string[]>([]);
+  const [exploredProfiles, setExploredProfiles] = useState<CompareProfile[]>([]);
+  const [searchPlatform, setSearchPlatform] = useState<PublicPlatform>('github');
+  const [searchHandle, setSearchHandle] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const exploredProfileFromState = location.state?.exploreProfile as PublicDataResult | undefined;
+
+  useEffect(() => {
+    if (exploredProfileFromState) {
+      const profile: CompareProfile = {
+        id: `explored-${exploredProfileFromState.platform}-${exploredProfileFromState.profile.username}`,
+        platform: exploredProfileFromState.platform,
+        handle: exploredProfileFromState.profile.username,
+        display_name: exploredProfileFromState.profile.displayName,
+        avatar_url: exploredProfileFromState.profile.avatarUrl,
+        profile_url: exploredProfileFromState.profile.profileUrl,
+        data: {
+          metrics: exploredProfileFromState.metrics.map(m => ({ key: m.label.toLowerCase().replace(/\s+/g, '_'), label: m.label, value: m.value, format: 'number' })),
+          activity: exploredProfileFromState.activity,
+        },
+        source: 'explored',
+      };
+      setExploredProfiles(prev => {
+        if (prev.some(p => p.id === profile.id)) return prev;
+        return [...prev, profile];
+      });
+    }
+  }, [exploredProfileFromState]);
+
+  const allProfiles = useMemo(() => [
+    ...trackedProfiles.map(p => ({ ...p, source: 'tracked' as const })),
+    ...exploredProfiles,
+  ], [trackedProfiles, exploredProfiles]);
 
   const chosen = useMemo(() => {
-    const ids = selected.length ? selected : profiles.slice(0, 2).map((p) => p.id);
-    return profiles.filter((p) => ids.includes(p.id));
-  }, [profiles, selected]);
+    const ids = selected.length ? selected : allProfiles.slice(0, 2).map((p) => p.id);
+    return allProfiles.filter((p) => ids.includes(p.id));
+  }, [allProfiles, selected]);
 
   const sharedMetrics = useMemo(() => {
     if (chosen.length === 0) return [];
@@ -64,9 +114,46 @@ export function CompareView() {
 
   const toggle = (id: string) =>
     setSelected((prev) => {
-      const base = prev.length ? prev : profiles.slice(0, 2).map((p) => p.id);
+      const base = prev.length ? prev : allProfiles.slice(0, 2).map((p) => p.id);
       return base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
     });
+
+  const handleExploreSearch = async () => {
+    if (!searchHandle.trim()) return;
+    setSearchLoading(true);
+    try {
+      const result = await explorePublicProfile(searchPlatform, searchHandle);
+      const profile: CompareProfile = {
+        id: `explored-${result.platform}-${result.profile.username}`,
+        platform: result.platform,
+        handle: result.profile.username,
+        display_name: result.profile.displayName,
+        avatar_url: result.profile.avatarUrl,
+        profile_url: result.profile.profileUrl,
+        data: {
+          metrics: result.metrics.map(m => ({ key: m.label.toLowerCase().replace(/\s+/g, '_'), label: m.label, value: m.value, format: 'number' })),
+          activity: result.activity,
+        },
+        source: 'explored',
+      };
+      setExploredProfiles(prev => {
+        if (prev.some(p => p.id === profile.id)) return prev;
+        return [...prev, profile];
+      });
+      setSelected(prev => [...prev, profile.id]);
+      setSearchHandle('');
+      toast({ title: "Profile added", description: `${profile.handle} on ${result.platform} added to comparison` });
+    } catch (error) {
+      toast({ title: "Failed to add profile", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const removeExploredProfile = (id: string) => {
+    setExploredProfiles(prev => prev.filter(p => p.id !== id));
+    setSelected(prev => prev.filter(s => s !== id));
+  };
 
   if (isLoading) {
     return (
@@ -77,7 +164,7 @@ export function CompareView() {
     );
   }
 
-  if (profiles.length < 2) {
+  if (allProfiles.length < 2) {
     return (
       <div className="p-4 sm:p-6 max-w-2xl">
         <h1 className="text-lg font-semibold mb-8">Compare</h1>
@@ -100,22 +187,54 @@ export function CompareView() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {profiles.map((p) => {
+        {allProfiles.map((p) => {
           const active = activeIds.includes(p.id);
           return (
-            <button
-              key={p.id}
-              onClick={() => toggle(p.id)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-all hover:-translate-y-0.5 ${
-                active ? "border-primary bg-primary/5 font-medium" : "border-border bg-card hover:border-primary/40"
-              }`}
-            >
-              <ProfileAvatar profile={p} size="sm" />
-              <span className="truncate max-w-[140px]">{p.display_name || p.handle}</span>
-              <PlatformChip platform={p.platform} />
-            </button>
+            <div key={p.id} className="flex items-center gap-2">
+              <button
+                onClick={() => toggle(p.id)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-all hover:-translate-y-0.5 ${
+                  active ? "border-primary bg-primary/5 font-medium" : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
+                <ProfileAvatar profile={p} size="sm" />
+                <span className="truncate max-w-[140px]">{p.display_name || p.handle}</span>
+                <PlatformChip platform={p.platform} />
+              </button>
+              {p.source === 'explored' && (
+                <button onClick={() => removeExploredProfile(p.id)} className="text-muted-foreground hover:text-destructive" title="Remove">
+                  <GitCompareArrows className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           );
         })}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <select
+            value={searchPlatform}
+            onChange={(e) => setSearchPlatform(e.target.value as PublicPlatform)}
+            className="rounded-md border border-border bg-card px-2 py-1.5 text-sm"
+          >
+            <option value="github">GitHub</option>
+            <option value="codeforces">Codeforces</option>
+            <option value="leetcode">LeetCode</option>
+            <option value="codewars">Codewars</option>
+            <option value="stackoverflow">Stack Overflow</option>
+          </select>
+          <Input
+            value={searchHandle}
+            onChange={(e) => setSearchHandle(e.target.value)}
+            placeholder={searchPlatform === 'stackoverflow' ? 'User ID (numeric)' : 'Username/handle'}
+            className="w-48"
+            onKeyDown={(e) => e.key === 'Enter' && handleExploreSearch()}
+          />
+          <Button size="sm" onClick={handleExploreSearch} disabled={searchLoading}>
+            {searchLoading ? 'Adding...' : 'Add to Compare'}
+          </Button>
+        </div>
       </div>
 
       {chosen.length < 2 ? (
@@ -135,7 +254,7 @@ export function CompareView() {
                   {chosen.map((p) => (
                     <th key={p.id} className="py-2 pr-4 font-medium whitespace-nowrap">
                       {p.display_name || p.handle}
-                      <span className="block text-[10px] font-normal text-muted-foreground">{getIntegration(p.platform).name}</span>
+                      <span className="block text-[10px] font-normal text-muted-foreground">{getIntegration(p.platform as any).name}</span>
                     </th>
                   ))}
                 </tr>

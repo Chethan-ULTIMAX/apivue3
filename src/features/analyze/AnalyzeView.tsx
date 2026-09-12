@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useProfileSnapshots, useTrackedProfiles } from '@/hooks/use-profiles';
 import { buildProgressReport } from '@/lib/analytics/progress';
 
@@ -27,6 +27,7 @@ import { StatisticsOverview } from './components/StatisticsOverview';
 import { TrendAnalytics } from './components/TrendAnalytics';
 
 export function AnalyzeView() {
+  const location = useLocation();
   const {
     data: profiles,
     isLoading,
@@ -34,10 +35,28 @@ export function AnalyzeView() {
   } = useTrackedProfiles();
   const { data: snapshots = [], isLoading: snapshotsLoading } = useProfileSnapshots();
 
+  const exploredProfile = location.state?.exploreProfile;
+
   const connectedProfiles = useMemo(() => {
-    if (!Array.isArray(profiles)) return [];
-    return profiles;
-  }, [profiles]);
+    const base = Array.isArray(profiles) ? profiles : [];
+    if (exploredProfile) {
+      const explored = {
+        id: `explored-${exploredProfile.platform}-${exploredProfile.profile.username}`,
+        platform: exploredProfile.platform,
+        handle: exploredProfile.profile.username,
+        display_name: exploredProfile.profile.displayName,
+        avatar_url: exploredProfile.profile.avatarUrl,
+        profile_url: exploredProfile.profile.profileUrl,
+        data: {
+          metrics: exploredProfile.metrics.map(m => ({ key: m.label.toLowerCase().replace(/\s+/g, '_'), label: m.label, value: m.value, format: 'number' })),
+          activity: exploredProfile.activity,
+        },
+        last_synced_at: exploredProfile.fetchedAt,
+      };
+      return [...base, explored];
+    }
+    return base;
+  }, [profiles, exploredProfile]);
 
   const report = useMemo(() => buildProgressReport(connectedProfiles, snapshots), [connectedProfiles, snapshots]);
   const hasConnectedData = report.profileCount > 0;

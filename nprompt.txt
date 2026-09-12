@@ -1,0 +1,775 @@
+You are the primary coding agent for my existing project APIVue.
+
+CURRENT DIRECTORY:
+D:\APIVue
+
+IMPORTANT:
+This is an EXISTING project. Do NOT rebuild it from scratch.
+Do NOT throw away working features.
+Do NOT create a fake/demo version.
+Inspect the entire repository first and understand what already exists.
+
+YOUR GOAL:
+Take the existing APIVue project as far toward a complete, production-quality application as possible.
+
+You have permission to:
+- inspect the entire repository
+- read all source files
+- modify existing files
+- create missing files
+- remove obsolete code when genuinely necessary
+- install required dependencies
+- run commands
+- run npm build/tests/type checking
+- fix errors
+- iterate until the project is in the best working state possible
+
+Do NOT stop after identifying problems.
+Do NOT merely give me a report.
+Actually implement the fixes and features.
+
+==================================================
+APIVUE PRODUCT VISION
+==================================================
+
+APIVue is a personal analytics, progress, history, comparison, and AI-guidance platform.
+
+The core pipeline is:
+
+DATA
+  ↓
+HISTORY
+  ↓
+ANALYTICS
+  ↓
+INSIGHTS
+  ↓
+AI GUIDANCE
+
+More specifically:
+
+Platforms / Manual inputs
+        ↓
+Integrations / Public data
+        ↓
+Normalization
+        ↓
+Snapshots / History / Events
+        ↓
+Analytics engine
+        ↓
+Progress / Statistics / Trends
+        ↓
+AI context
+        ↓
+Personal guidance
+
+APIVue should NOT be limited to developer progress.
+The long-term product is a broader personal tracking and analytics platform.
+
+However, the currently implemented platform integrations include developer/public platforms such as:
+- GitHub
+- Codeforces
+- LeetCode
+- Codewars
+- Stack Overflow
+
+Use the existing architecture and expand it carefully.
+
+==================================================
+NON-NEGOTIABLE RULES
+==================================================
+
+1. NEVER invent statistics.
+
+Every displayed metric must come from:
+- real API data
+- real stored data
+- a deterministic calculation from real data
+
+If a platform does not provide a metric, display:
+"N/A"
+or omit that metric.
+
+Never turn unavailable data into fake zeroes.
+
+2. NEVER fake integrations.
+
+Do not pretend OAuth succeeded.
+Do not fabricate connected accounts.
+Do not create fake API responses.
+
+3. NEVER ask users to enter platform passwords into APIVue.
+
+Use legitimate public APIs or OAuth/account authorization.
+
+4. Keep secrets server-side.
+
+OAuth tokens, client secrets, service-role credentials, etc. must never be exposed to the React client.
+
+5. Public Explore data and private connected-account data are different concepts.
+
+Explore:
+- public
+- selected profile
+- primarily exploratory
+
+Integrations:
+- authenticated user's own account
+- authorized access
+- stored history where supported
+
+6. Do not unnecessarily rewrite working code.
+
+Before replacing a component, understand why it exists.
+
+7. Preserve the existing visual design and improve it rather than replacing the entire UI with a generic template.
+
+8. The application must remain responsive and usable.
+
+9. Handle:
+- loading
+- empty
+- error
+- unavailable data
+- API failure
+- rate limiting
+
+gracefully.
+
+10. Do not claim something is implemented unless it actually works.
+
+==================================================
+FIRST: INSPECT THE ENTIRE PROJECT
+==================================================
+
+Before making changes:
+
+Inspect:
+- package.json
+- vite.config
+- tsconfig
+- src/
+- server/
+- supabase/
+- all integration files
+- API clients
+- hooks
+- analytics
+- Explore
+- Integrations
+- Analyze
+- Compare
+- Goals
+- AI Insights
+- routing
+- authentication
+- database migrations
+- environment configuration
+
+Trace the real data flow.
+
+Identify existing working functionality and preserve it.
+
+Then implement the complete project rather than stopping at analysis.
+
+==================================================
+1. AUTHENTICATION
+==================================================
+
+Ensure Supabase authentication works correctly.
+
+Support:
+- sign up
+- sign in
+- sign out
+- session persistence
+- protected application routes
+- profile creation
+- password reset if already architected
+- Google OAuth if already configured
+
+Do not break the existing authentication system.
+
+==================================================
+2. DATABASE
+==================================================
+
+Use the existing Supabase schema.
+
+Understand and correctly use existing tables such as:
+
+profiles
+connected_accounts
+activity_events
+goals
+tracked_profiles
+profile_snapshots
+
+Ensure:
+- proper user ownership
+- correct foreign keys
+- RLS
+- indexes where useful
+- timestamps
+- no cross-user data leakage
+
+Do not create unnecessary duplicate tables.
+
+==================================================
+3. INTEGRATIONS — FIX COMPLETELY
+==================================================
+
+This is currently one of the biggest broken areas.
+
+The Integrations page currently shows:
+
+"Failed to fetch"
+
+and connecting an account does not properly progress.
+
+Find the ROOT CAUSE.
+
+Trace:
+
+React Integrations UI
+    ↓
+src/lib/integrations/api.ts
+    ↓
+frontend API URL
+    ↓
+server
+    ↓
+Express routes
+    ↓
+Supabase authentication
+    ↓
+OAuth/public API
+    ↓
+database
+
+Fix the entire flow.
+
+Important:
+The application may run locally and also inside GitHub Codespaces.
+
+Do not hardcode localhost in a way that breaks deployed/forwarded environments.
+
+Use a correct configurable API base URL.
+
+Fix CORS/credentials/session handling if necessary.
+
+Fix backend authentication verification.
+
+Fix OAuth state handling.
+
+Fix callback handling.
+
+Fix connection persistence.
+
+Fix disconnect.
+
+Fix sync.
+
+After connecting GitHub, the UI should actually update to the connected state.
+
+Where supported, allow:
+- Connect
+- Disconnect
+- Sync now
+- connected username
+- avatar
+- profile URL
+- connection status
+- last synced timestamp
+- sync errors
+
+Do not expose OAuth access tokens to the browser.
+
+Current GitHub OAuth permissions may only allow basic user information.
+Do NOT claim private repository access unless the correct authorization scope is actually implemented.
+
+For platforms that only support public data, clearly mark them as public-data integrations.
+
+==================================================
+4. PUBLIC EXPLORE — MAKE IT EXCELLENT
+==================================================
+
+Explore already has working public GitHub fetching.
+
+Preserve that.
+
+Expand it substantially.
+
+Users should be able to:
+- choose platform
+- search username/handle
+- fetch real public profile
+- inspect statistics
+- open detailed analytics
+- add the profile to Compare
+
+Support existing platforms where their public APIs permit:
+- GitHub
+- Codeforces
+- LeetCode
+- Codewars
+- Stack Overflow
+
+Use the existing platform registry/fetcher architecture.
+
+Create a consistent normalized representation so different platforms can feed the analytics system.
+
+For every platform:
+- use official/public endpoints where possible
+- handle API failures
+- handle nonexistent profiles
+- handle rate limits
+- normalize available data
+
+==================================================
+5. PUBLIC PROFILE ANALYTICS
+==================================================
+
+Make the Explore profile much richer.
+
+Depending on available platform data, include real analytics such as:
+
+Profile:
+- username
+- display name
+- avatar
+- bio
+- profile URL
+- account creation date
+- followers
+- following
+
+Repositories/code:
+- public repository count
+- stars
+- forks
+- languages
+- repository distribution
+- repository activity
+
+Activity:
+- recent activity
+- activity frequency
+- activity timeline
+- busiest days when derivable
+- active days
+- contribution/activity trends
+
+Programming:
+- language distribution
+- language counts
+- problem counts
+- rating/rank where available
+- accepted/submission statistics where available
+
+Time:
+- activity by day
+- activity by week
+- recent vs previous period
+- trends
+
+Use interactive charts where useful.
+
+Do not create charts merely for decoration.
+
+Charts must be based on actual data.
+
+==================================================
+6. ANALYZE — BUILD A REAL ANALYTICS EXPERIENCE
+==================================================
+
+Analyze should not just show a few cards.
+
+Build a meaningful analytics dashboard from real normalized data.
+
+Include, where data exists:
+
+Overview:
+- total activity
+- active days
+- current streak
+- longest streak
+- recent activity
+- change from previous period
+
+Trends:
+- activity over time
+- repositories/problems/etc over time
+- growth trends
+- weekly/monthly patterns
+
+Breakdowns:
+- languages
+- activity types
+- repositories
+- problem categories
+- platform distribution
+
+Statistics:
+- totals
+- averages
+- maximums
+- minimums
+- percentages
+- period-over-period changes
+
+Use deterministic calculations.
+
+Interactive behavior:
+- date ranges
+- metric selection
+- hover tooltips
+- legends
+- chart filtering where useful
+
+Make the analytics reusable across platforms.
+
+==================================================
+7. HISTORY
+==================================================
+
+Make sure the architecture supports historical snapshots.
+
+When data is synced/fetched repeatedly:
+
+store appropriate snapshots/events.
+
+Do not overwrite history unnecessarily.
+
+Analytics should be able to compare:
+- today
+- previous period
+- previous week
+- previous month
+- historical snapshots
+
+If there is insufficient history, clearly say so.
+
+Never fabricate historical points.
+
+==================================================
+8. COMPARE — MAKE IT ACTUALLY USABLE
+==================================================
+
+Current Compare is effectively unusable.
+
+Fix it completely.
+
+Users should be able to select:
+
+Profile A
+Profile B
+
+Sources can include:
+- their own connected profile
+- a previously explored public profile
+- another selected public profile
+
+The simplest useful flow:
+
+Explore public profile
+        ↓
+Add to Compare
+        ↓
+Compare page
+        ↓
+Profile A / Profile B
+        ↓
+Compare
+
+Also allow selecting profiles directly from Compare where practical.
+
+Compare equivalent metrics only.
+
+Examples:
+
+Repositories
+Followers
+Following
+Stars
+Forks
+Activity
+Active days
+Languages
+Problem/rating statistics
+Recent activity
+
+If one side does not have a metric:
+
+show N/A.
+
+Do not assume different platforms expose identical metrics.
+
+Create:
+- comparison overview
+- metric cards
+- side-by-side statistics
+- charts
+- activity comparison
+- language comparison
+- trend comparison when historical data exists
+
+Make comparison interactive.
+
+==================================================
+9. GOALS
+==================================================
+
+Use the existing goals system.
+
+Make goals actually work.
+
+Support:
+- create
+- edit
+- delete if already architected
+- pause/resume
+- complete
+- progress calculation
+- current status
+- progress percentage
+- deadline where supported
+- deterministic suggestions
+
+Statuses must be internally consistent.
+
+Do not invent goal progress.
+
+==================================================
+10. AI INSIGHTS
+==================================================
+
+Keep deterministic analytics separate from AI.
+
+First calculate facts with code.
+
+Then provide those facts as context to AI.
+
+AI should interpret the real data.
+
+Example:
+
+"Based on your APIVue activity..."
+
+It should NOT say:
+
+"You are an advanced programmer"
+
+unless actual data supports that conclusion.
+
+AI should be able to suggest:
+- what to focus on
+- patterns noticed
+- areas improving
+- areas declining
+- possible next actions
+- goal suggestions
+
+If no AI provider is configured, provide a graceful deterministic fallback rather than breaking the page.
+
+Never fabricate an AI response as though an external model generated it.
+
+==================================================
+11. UI / UX
+==================================================
+
+Preserve the current APIVue design language.
+
+Improve:
+- spacing
+- hierarchy
+- cards
+- charts
+- empty states
+- loading states
+- error states
+- responsive layouts
+- navigation
+- accessibility
+
+Use existing dependencies where possible.
+
+Do not introduce a giant unnecessary UI framework.
+
+Keep animations subtle and useful.
+
+==================================================
+12. PERFORMANCE
+==================================================
+
+The user's computer is relatively low-powered.
+
+Avoid:
+- huge unnecessary dependencies
+- expensive animations
+- unnecessary polling
+- excessive API requests
+- loading everything at once
+- giant client-side computations when server-side or memoized computation is better
+
+Use:
+- caching where appropriate
+- memoization
+- pagination
+- lazy loading where useful
+
+==================================================
+13. SECURITY
+==================================================
+
+Audit the application while working.
+
+Check:
+- Supabase RLS
+- authentication
+- authorization
+- API routes
+- CORS
+- OAuth state
+- token handling
+- environment variables
+- client/server secret separation
+- input validation
+- URL handling
+- error leakage
+
+Never expose:
+- Supabase service-role key
+- OAuth client secret
+- OAuth access tokens
+- API secrets
+
+==================================================
+14. ENVIRONMENT / DEPLOYMENT
+==================================================
+
+The project may run:
+- locally
+- in GitHub Codespaces
+- through a deployed frontend
+
+Make environment configuration clear.
+
+Do not make the frontend depend on a backend localhost address when deployed.
+
+Use environment variables for:
+- API URL
+- Supabase URL
+- Supabase publishable key
+- OAuth configuration
+
+Never commit secrets.
+
+==================================================
+15. TESTING
+==================================================
+
+After implementation:
+
+Run:
+
+npm run build
+
+Then run available tests.
+
+Fix every TypeScript/build error.
+
+Also inspect for:
+- unused imports
+- broken routes
+- incorrect types
+- duplicate exports
+- missing imports
+- incorrect API URLs
+- runtime crashes
+- dead code introduced during your work
+
+Do not stop after the first successful build.
+
+==================================================
+16. IMPORTANT WORK STYLE
+==================================================
+
+Work autonomously.
+
+Do NOT repeatedly ask me what to do next.
+
+Inspect → plan internally → implement → test → fix → continue.
+
+If one area is blocked by an external credential/API limitation:
+- implement everything possible around it
+- create a proper graceful fallback
+- document exactly what remains externally dependent
+
+Do not fake success.
+
+If you encounter an existing implementation that is partially correct:
+- repair it
+- don't replace it blindly.
+
+If you encounter a build error:
+- fix it yourself
+- continue.
+
+If tests fail:
+- investigate
+- fix
+- rerun.
+
+If an API has rate limits:
+- implement sensible handling/caching
+- continue with the rest of the project.
+
+==================================================
+17. FINAL VERIFICATION
+==================================================
+
+Before finishing:
+
+1. npm install if required
+2. npm run build
+3. run all available tests
+4. inspect important routes
+5. inspect Integrations
+6. inspect Explore
+7. inspect Analyze
+8. inspect Compare
+9. inspect Goals
+10. inspect AI Insights
+11. inspect authentication
+12. inspect API configuration
+13. inspect security-sensitive code
+
+Fix everything you can.
+
+Then provide a concise final report containing:
+
+- what you changed
+- what was already working
+- what you fixed
+- what new functionality was implemented
+- build/test result
+- any genuinely remaining external limitations
+
+DO NOT CLAIM THE WEBSITE IS COMPLETE IF SOMETHING IS STILL BROKEN.
+
+==================================================
+START NOW
+==================================================
+
+You are currently working inside:
+
+D:\APIVue
+
+Begin by inspecting the entire existing project.
+
+Then implement the improvements above.
+
+Do not merely analyze the repository.
+Actually modify the code and continue working until you have taken APIVue as far as possible.

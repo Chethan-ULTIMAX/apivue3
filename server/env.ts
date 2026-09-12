@@ -14,7 +14,7 @@ export const env = {
   port: Number(process.env.PORT ?? 8787),
 
   clientUrl:
-    process.env.CLIENT_URL ?? 'http://localhost:5173',
+    process.env.CLIENT_URL ?? 'http://localhost:8080',
 
   sessionSecret: required('SESSION_SECRET'),
 
