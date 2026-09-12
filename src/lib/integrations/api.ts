@@ -1,12 +1,3 @@
-/**
- * Browser integration client.
- *
- * Public profiles use the authenticated Supabase sync-profile Edge Function.
- * GitHub uses a GitHub App installation + OAuth flow. The authorization code
- * and GitHub access token are handled server-side by Supabase; the browser
- * never receives or stores the GitHub token.
- */
-
 import { supabase } from '@/integrations/supabase/client';
 import type { IntegrationId, IntegrationStatus } from './types';
 
@@ -76,7 +67,7 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
 
   const { data, error } = await supabase
     .from('tracked_profiles')
-    .select('platform,handle,display_name,avatar_url,profile_url,last_synced_at')
+    .select('platform,handle,display_name,avatar_url,profile_url,last_synced_at,data')
     .order('last_synced_at', { ascending: false });
   if (error) throw new Error(error.message);
 
@@ -90,6 +81,13 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
   for (const row of data ?? []) {
     const id = row.platform as IntegrationId;
     if (!(id in status) || status[id].connected) continue;
+    const payload = row.data as Record<string, unknown> | null;
+    const privateAccess = payload?.privateAccess === true || payload?.private_access === true;
+    const repoCount = typeof payload?.accessibleRepoCount === 'number'
+      ? payload.accessibleRepoCount
+      : typeof payload?.accessible_repo_count === 'number'
+        ? payload.accessible_repo_count
+        : undefined;
     status[id] = {
       connected: true,
       username: row.handle,
@@ -98,6 +96,8 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
       avatarUrl: row.avatar_url,
       profileUrl: row.profile_url ?? undefined,
       lastSyncedAt: row.last_synced_at ?? undefined,
+      privateAccess,
+      accessibleRepoCount: repoCount,
     };
   }
   return status;
