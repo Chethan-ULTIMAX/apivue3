@@ -104,7 +104,10 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
 }
 
 export async function connectGitHub(handle = ''): Promise<void> {
-  const clean = handle.trim().replace(/^@/, '');
+  const formHandle = typeof document !== 'undefined'
+    ? document.querySelector<HTMLInputElement>('input[placeholder="octocat"]')?.value ?? ''
+    : '';
+  const clean = (handle || formHandle).trim().replace(/^@/, '');
   if (!clean && API_BASE) {
     const { url } = await backendRequest<{ url: string }>('/api/integrations/github/connect');
     window.location.href = url;
