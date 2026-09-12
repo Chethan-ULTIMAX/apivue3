@@ -154,10 +154,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // NOTE: This currently redirects to /forgot-password, the closest
-      // existing route. Once a dedicated "set new password" page is added,
-      // change this to that route.
-      redirectTo: `${window.location.origin}/forgot-password`,
+      // The recovery email lands on the dedicated reset-password page,
+      // which detects the PASSWORD_RECOVERY session.
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) throw error;
   };

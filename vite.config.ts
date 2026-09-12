@@ -1,11 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode, command }) => ({
+export default defineConfig(({ command }) => ({
   base: command === "build" ? "/apivue3/" : "/",
 
   server: {
@@ -16,11 +14,7 @@ export default defineConfig(({ mode, command }) => ({
     },
   },
 
-  plugins: [
-    react(),
-    mcpPlugin(),
-    mode === "development" && componentTagger(),
-  ].filter(Boolean),
+  plugins: [react()],
 
   resolve: {
     alias: {

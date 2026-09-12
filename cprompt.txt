@@ -1,0 +1,311 @@
+============================================================
+APIVUE — COMPLETE THE PROJECT (D:\APIVue)
+============================================================
+
+You are the lead engineer completing the APIVue project.
+Read this entire prompt before touching any file.
+
+============================================================
+PROJECT CONTEXT
+============================================================
+
+APIVue is a personal progress intelligence platform:
+  DATA → HISTORY → ANALYTICS → INSIGHTS → AI GUIDANCE
+
+Stack:
+  - Frontend: React + Vite + TypeScript + Tailwind + shadcn/ui
+  - Backend: Express + TypeScript
+  - Auth: Supabase Auth
+  - DB: Supabase PostgreSQL (RLS enabled)
+  - Integrations: GitHub (OAuth), Codeforces, LeetCode, Codewars, Stack Overflow (all public API)
+
+Repo root: D:\APIVue
+
+The architecture is already established. Every file has been
+reviewed. Your job is to:
+  1. Fix the two blocking bugs
+  2. Remove the dead Lovable code
+  3. Complete every missing page / stubbed feature that can be
+     completed WITHOUT the user providing new credentials
+  4. Wire up environment config with clear placeholders
+  5. Verify everything builds, typechecks, tests, and runs
+
+Hard rules:
+  - Do NOT redesign the UI
+  - Do NOT change the architecture
+  - Do NOT invent API keys or secrets
+  - Do NOT change route paths
+  - Do NOT rewrite the analytics engine
+  - Do NOT touch unrelated files
+  - If you are unsure, STOP and ask
+
+============================================================
+TASK 1 — FIX LOGIN REDIRECT LOOP
+============================================================
+
+Symptom:
+  - User logs in, lands on /dashboard (works)
+  - Clicking sidebar links OR hard-refreshing /dashboard/progress,
+    /dashboard/analytics, /dashboard/explore etc. redirects to /login
+
+Root cause:
+  Lovable's preview-auth-storage shim is still wired into the
+  Supabase client. It delays session reads by ~2 seconds via a
+  postMessage timeout, during which `user` is null and
+  ProtectedRoute fires a redirect to /login.
+
+Fix — in this exact order:
+
+  1. Delete src/integrations/lovable/  (whole folder)
+  2. Delete src/integrations/supabase/previewAuthStorage.ts
+  3. Rewrite src/integrations/supabase/client.ts:
+       - import { createClient } from '@supabase/supabase-js'
+       - read VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY
+       - throw at module load if either is missing
+       - include createSupabaseFetch helper that strips a Bearer
+         Authorization header when the key starts with
+         'sb_publishable_' or 'sb_secret_'
+       - auth: { persistSession: true, autoRefreshToken: true }
+       - export const supabase (named export)
+       - NO reference to brokeredPreviewStorage
+  4. Rewrite src/lib/auth-context.tsx:
+       - remove Lovable import
+       - signInWithGoogle → supabase.auth.signInWithOAuth
+       - keep the same public API and signatures
+       - export AuthUser type
+  5. npm uninstall @lovable.dev/cloud-auth-js
+  6. Verify: grep -rin "lovable" src package.json vite.config.ts index.html
+     Must return ZERO matches in src/ and package.json.
+
+============================================================
+TASK 2 — FIX BACKEND UNREACHABLE
+============================================================
+
+Symptom:
+  On /dashboard/integrations:
+    "Connection service unavailable — Failed to fetch"
+
+Cause: backend not running OR missing env vars OR wrong VITE_API_URL.
+
+Steps:
+
+  1. From D:\APIVue\server run: npm run dev
+     - If it prints the startup banner → server works, move to step 2.
+     - If it throws "Missing required environment variable: X" →
+       report X. Create server/.env with PLACEHOLDERS:
+         SESSION_SECRET=
+         GITHUB_CLIENT_ID=
+         GITHUB_CLIENT_SECRET=
+         GITHUB_CALLBACK_URL=http://localhost:8787/api/integrations/github/callback
+         SUPABASE_URL=
+         SUPABASE_PUBLISHABLE_KEY=
+         SUPABASE_SERVICE_ROLE_KEY=
+         CLIENT_URL=http://localhost:8080
+         PORT=8787
+         NODE_ENV=development
+       Tell the user which placeholders to fill.
+
+  2. From D:\APIVue check .env / .env.local exist with:
+       VITE_SUPABASE_URL=
+       VITE_SUPABASE_PUBLISHABLE_KEY=
+       VITE_API_URL=http://localhost:8787
+     Create with the same values if missing.
+
+  3. Do NOT invent secrets. Report to the user exactly which keys
+     need to be filled and where to get them:
+       - Supabase URL + keys → Supabase project Settings → API
+       - GitHub OAuth → GitHub Settings → Developer settings → OAuth Apps
+       - SESSION_SECRET → generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+============================================================
+TASK 3 — ADD THE MISSING RESET-PASSWORD PAGE
+============================================================
+
+Currently /reset-password is not a real page. Supabase's recovery
+email lands on /forgot-password, which only re-requests a reset.
+
+Create:
+  - src/pages/ResetPasswordPage.tsx
+      - Detects the recovery session via supabase.auth.onAuthStateChange
+        (event === 'PASSWORD_RECOVERY')
+      - If no recovery session, redirects to /forgot-password
+      - Form with: new password + confirm password
+      - Calls supabase.auth.updateUser({ password })
+      - On success: toast + navigate('/login')
+      - Match the visual style of LoginPage.tsx
+
+  - Update src/App.tsx: add a public route
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+  - Update src/lib/auth-context.tsx: change resetPassword's
+      redirectTo to `${window.location.origin}/reset-password`
+
+============================================================
+TASK 4 — COMPLETE STUBBED FEATURES (code-only)
+============================================================
+
+Audit every file under src/features/ and src/pages/ for:
+
+  a) TODO / FIXME / placeholder comments
+  b) "Coming soon" text
+  c) Buttons that don't do anything
+  d) Empty onClick handlers
+  e) Sections that say "connect this later"
+
+For each one:
+  - If it can be implemented using existing code and existing
+    data (no new credentials), implement it.
+  - If it needs a credential or external setup, add a clear
+    inline TODO comment naming exactly what is needed. Do NOT
+    fabricate.
+
+Specifically verify:
+  - src/features/integrations/IntegrationsView.tsx — all 5
+    connect buttons must call the correct API helper
+  - src/features/explore/ExploreView.tsx — search + add to compare
+    must work
+  - src/features/compare/CompareView.tsx — must render at least
+    two profiles side by side
+  - src/features/goals/GoalsView.tsx — create / complete / delete
+    goals must persist to Supabase
+  - src/features/ai-insights/AIInsightsView.tsx — must render the
+    deterministic insights from generateAICoachSession
+
+============================================================
+TASK 5 — VERIFY SUPABASE SCHEMA (read-only)
+============================================================
+
+Read supabase/migrations/*.sql. Confirm these tables exist with
+these columns (report mismatches, do NOT auto-generate migrations):
+
+  - activity_events: id, user_id, profile_id, event_type, value,
+    unit, metadata, occurred_at, created_at
+  - tracked_profiles: id, user_id, platform, handle, display_name,
+    avatar_url, profile_url, data (jsonb), sync_error, last_synced_at
+  - profile_snapshots: id, profile_id, user_id, captured_at, metrics (jsonb)
+  - connected_accounts: user_id, provider, provider_user_id, username,
+    display_name, avatar_url, profile_url, metadata, connected_at,
+    last_synced_at  (UNIQUE on user_id, provider)
+  - goals: id, user_id, title, description, category, target_value,
+    current_value, unit, start_date, target_date, status, created_at
+
+If any table is missing or a column is missing, REPORT it — do not
+create migrations automatically. The user will decide.
+
+============================================================
+TASK 6 — HARDEN STORAGE SCOPING
+============================================================
+
+Read server/storage/connections.ts.
+
+CRITICAL: if connections are keyed by sessionId instead of userId,
+users lose all connections when they switch devices or clear cookies.
+
+If sessionId is part of the storage key:
+  - Change the storage layer to key by userId ONLY
+  - Change server/routes/integrations.ts to drop the sessionId
+    argument from all save*/get*/delete* calls
+  - Keep the sessionId only where it is legitimately needed:
+    OAuth state validation (in server/integrations/github.ts)
+
+If already keyed by userId only, report "already correct" and move on.
+
+============================================================
+TASK 7 — FULL VERIFICATION
+============================================================
+
+Run ALL of these. Do NOT claim success without actual output.
+
+  cd D:\APIVue
+    npm run build              → zero errors
+    npx tsc --noEmit -p tsconfig.app.json  → zero errors
+    npm test -- --run          → all tests pass
+
+  cd D:\APIVue\server
+    npm run build              → zero errors
+    npm run dev                → prints startup banner (or clear
+                                 missing-env error)
+
+  cd D:\APIVue
+    npm run dev                → Vite serves on port 8080
+
+Manual smoke test (report each as pass/fail):
+  1. Open http://localhost:8080
+  2. Log in
+  3. Land on /dashboard
+  4. Click every sidebar link — none redirect to /login
+  5. Hard-refresh on /dashboard/progress — no redirect
+  6. Visit /dashboard/integrations — the "Failed to fetch" banner
+     is gone IF the server is running AND .env values are real
+  7. Visit /reset-password — page renders (or redirects cleanly)
+
+============================================================
+TASK 8 — REPORT BACK
+============================================================
+
+Report in this exact format:
+
+  ## Files deleted
+  - (full paths)
+
+  ## Files rewritten
+  - (full path): (one-line reason)
+
+  ## Files edited
+  - (full path): (one-line change)
+
+  ## Env vars the user must provide
+  - File: server/.env  → KEY_NAME (where to get it)
+  - File: .env         → KEY_NAME (where to get it)
+
+  ## Schema mismatches found
+  - (list, or "none")
+
+  ## Verification results
+  - npm run build (frontend): PASS / FAIL + error text
+  - tsc --noEmit:             PASS / FAIL
+  - npm test:                 PASS / FAIL + count
+  - server build:             PASS / FAIL
+  - server dev:               PASS / FAIL + banner text
+  - Vite dev:                 PASS / FAIL
+  - Smoke tests 1–7:          (each line)
+    - Login → /dashboard: PASS / FAIL
+    - Sidebar links:      PASS / FAIL
+    - Hard refresh:       PASS / FAIL
+    - Integrations banner: PASS / FAIL
+    - /reset-password:    PASS / FAIL
+
+  ## Blockers
+  - (anything you could not resolve, with full error text)
+
+============================================================
+STOP CONDITIONS
+============================================================
+
+STOP and ask the user if:
+  - A required env var is missing and no placeholder exists yet
+  - A Supabase table or column is missing
+  - A file you need to edit does not exist
+  - You would need to change a public API signature
+  - Any fix would require installing a new dependency
+
+Do NOT proceed past a stop condition. Ask first.
+
+============================================================
+DO NOT
+============================================================
+
+  - Redesign any UI
+  - Rename files
+  - Change route paths in App.tsx (except adding /reset-password)
+  - Change the analytics engine (src/lib/analytics/*)
+  - Change the public-data layer (src/lib/public-data/*)
+  - Modify existing integration fetchers in server/integrations/*
+    unless they are the cause of a specific bug
+  - Commit any .env file
+  - Invent credentials, URLs, or IDs
+  - Claim success without running the verification commands
+
+============================================================
+END
+============================================================

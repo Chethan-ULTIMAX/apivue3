@@ -29,6 +29,7 @@ import { GoalsView } from '@/features/goals/GoalsView';
 import { LoginPage } from '@/pages/LoginPage';
 import { SignupPage } from '@/pages/SignupPage';
 import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 import { OAuthConsent } from '@/pages/OAuthConsent';
 import { NotFound } from '@/pages/NotFound';
 import { LandingPage } from '@/pages/LandingPage';
@@ -72,6 +73,7 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/*
                 Legacy route from a previous auth provider.
@@ -79,15 +81,6 @@ function App() {
                 redirects to /login.
               */}
               <Route path="/oauth-consent" element={<OAuthConsent />} />
-
-              {/*
-                NOTE: A dedicated "set new password" page does not yet
-                exist. The Supabase reset email currently lands on
-                /forgot-password, which only re-requests a reset.
-
-                When you build the actual reset form, replace the
-                element below with the new <ResetPasswordPage />.
-              */}
 
               {/* =================================================
                   PROTECTED DASHBOARD
