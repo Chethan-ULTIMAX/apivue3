@@ -21,10 +21,10 @@ export const categories: CategoryDefinition[] = [
 export const integrations: IntegrationDefinition[] = [
   {
     id: 'github', name: 'GitHub',
-    description: 'Repositories, contributions, activity, profile and development history.',
-    category: 'Development', categories: ['development', 'activity'], available: true, authType: 'username',
-    icon: Github, accent: '#8b5cf6', handleLabel: 'GitHub username', handlePlaceholder: 'octocat',
-    handleHint: 'Enter a public GitHub username. APIVue fetches only public data.',
+    description: 'Public profile plus OAuth-authorized repositories, contributions, activity and development history.',
+    category: 'Development', categories: ['development', 'activity'], available: true, authType: 'oauth',
+    icon: Github, accent: '#8b5cf6', handleLabel: 'GitHub account', handlePlaceholder: '',
+    handleHint: 'Authorize APIVue with GitHub to access the repositories and data your GitHub permissions allow.',
     headlineMetrics: ['public_repos', 'followers'],
     metrics: [{ key: 'public_repos', label: 'Repositories' }, { key: 'followers', label: 'Followers' }, { key: 'following', label: 'Following' }],
   },
