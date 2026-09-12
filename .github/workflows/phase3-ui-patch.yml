@@ -1,0 +1,103 @@
+name: Phase 3 UI patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply integration sync UI patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/features/integrations/IntegrationsView.tsx')
+          text = path.read_text()
+          if 'syncIntegration' not in text:
+              text = text.replace(
+                  "  getIntegrationStatus,\n  syncGitHub,\n} from '@/lib/integrations/api';",
+                  "  getIntegrationStatus,\n  syncGitHub,\n  syncIntegration,\n} from '@/lib/integrations/api';",
+                  1,
+              )
+              marker = "  /* ---------- Tracked-profile actions ---------- */"
+              handler = '''  /* ---------- Sync connected provider ---------- */
+
+  const handleSyncProvider = useCallback(
+    async (id: IntegrationId) => {
+      setBusyPlatform(id);
+      setConnectionError(null);
+      try {
+        if (id === 'github') await syncGitHub();
+        else await syncIntegration(id);
+        await loadAccountStatus();
+        toast({ title: `${getIntegration(id).name} synced` });
+      } catch (err) {
+        const message = (err as Error).message;
+        setConnectionError(message);
+        toast({
+          title: `${getIntegration(id).name} sync failed`,
+          description: message,
+          variant: 'destructive',
+        });
+      } finally {
+        setBusyPlatform(null);
+      }
+    },
+    [loadAccountStatus],
+  );
+
+'''
+              if marker not in text:
+                  raise SystemExit('tracked-profile marker missing')
+              text = text.replace(marker, handler + marker, 1)
+              legacy = '''  const handleSyncGitHub = useCallback(async () => {
+    setBusyPlatform('github');
+    try {
+      await syncGitHub();
+      await loadAccountStatus();
+      toast({ title: 'GitHub synced' });
+    } catch (err) {
+      const message = (err as Error).message;
+      setConnectionError(message);
+      toast({
+        title: 'GitHub sync failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setBusyPlatform(null);
+    }
+  }, [loadAccountStatus]);
+
+'''
+              if legacy not in text:
+                  raise SystemExit('legacy GitHub sync handler missing')
+              text = text.replace(legacy, '', 1)
+              old = '''                      onSync={
+                        integration.id === 'github'
+                          ? handleSyncGitHub
+                          : undefined
+                      }
+                      canSync={integration.id === 'github'}'''
+              new = '''                      onSync={() => handleSyncProvider(integration.id)}
+                      canSync={true}'''
+              if old not in text:
+                  raise SystemExit('sync summary block missing')
+              text = text.replace(old, new, 1)
+              path.write_text(text)
+          PY
+
+      - name: Commit UI patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/features/integrations/IntegrationsView.tsx
+          git commit -m "feat: enable sync controls for all connected providers"
+          git push
