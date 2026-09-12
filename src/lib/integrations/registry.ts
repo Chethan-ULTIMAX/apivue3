@@ -49,9 +49,11 @@ export const integrations: IntegrationDefinition[] = [
     headlineMetrics: ['honor', 'total_completed'],
   },
   {
-    id: 'stackoverflow', name: 'Stack Overflow', description: 'Reputation, answers and community activity.',
-    category: 'Community', categories: ['development', 'activity'], available: true, authType: 'username',
-    icon: MessageSquareCode, accent: '#f97316', handleLabel: 'Stack Overflow user ID', handlePlaceholder: '22656', handleHint: 'Enter the numeric Stack Exchange user ID.',
+    id: 'stackoverflow', name: 'Stack Overflow',
+    description: 'Verified Stack Overflow account with reputation, answers, questions, badges and community activity.',
+    category: 'Community', categories: ['development', 'activity'], available: true, authType: 'oauth',
+    icon: MessageSquareCode, accent: '#f97316', handleLabel: 'Stack Overflow account', handlePlaceholder: '',
+    handleHint: 'Sign in with Stack Overflow. APIVue verifies the account through OAuth and loads its public profile data.',
     headlineMetrics: ['reputation', 'answers', 'gold'],
   },
 ];
