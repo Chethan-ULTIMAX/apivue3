@@ -11,18 +11,16 @@ const INSTALL_URL = "https://github.com/apps/apivue-developer-explorer/installat
 function secretKey() {
   const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
   if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      return parsed.default ?? Object.values(parsed)[0];
-    } catch { /* fallback */ }
+    try { const parsed = JSON.parse(raw); return parsed.default ?? Object.values(parsed)[0]; } catch { /* fallback */ }
   }
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SUPABASE_SECRET_KEY") ?? "";
 }
 
-function redirect(status: string, message?: string) {
+function redirect(status: string, message?: string, installUrl?: string) {
   const url = new URL(FRONTEND_URL);
   url.searchParams.set("github", status);
   if (message) url.searchParams.set("message", message.slice(0, 180));
+  if (installUrl) url.searchParams.set("install", installUrl);
   return new Response(null, { status: 302, headers: { Location: url.toString(), ...corsHeaders } });
 }
 
@@ -33,12 +31,7 @@ async function sha256Hex(value: string) {
 
 async function github(path: string, token: string) {
   const response = await fetch(`https://api.github.com${path}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2026-03-10",
-      "User-Agent": "APIVue",
-    },
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": "2026-03-10", "User-Agent": "APIVue" },
   });
   if (!response.ok) {
     const text = await response.text();
@@ -54,9 +47,7 @@ async function exchangeCode(code: string) {
     body: JSON.stringify({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, code, redirect_uri: CALLBACK_URL }),
   });
   const body = await response.json() as { access_token?: string; error?: string; error_description?: string };
-  if (!response.ok || !body.access_token) {
-    throw new Error(body.error_description ?? body.error ?? "GitHub token exchange failed.");
-  }
+  if (!response.ok || !body.access_token) throw new Error(body.error_description ?? body.error ?? "GitHub token exchange failed.");
   return body.access_token;
 }
 
@@ -74,11 +65,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, secretKey(), { auth: { persistSession: false } });
   const stateHash = await sha256Hex(state);
-  const { data: stateRow, error: stateError } = await admin
-    .from("github_oauth_states")
-    .select("id,user_id,expires_at")
-    .eq("state_hash", stateHash)
-    .maybeSingle();
+  const { data: stateRow, error: stateError } = await admin.from("github_oauth_states").select("id,user_id,expires_at").eq("state_hash", stateHash).maybeSingle();
   if (stateError || !stateRow) return redirect("error", "Invalid or expired GitHub connection request. Start the connection again.");
   if (new Date(stateRow.expires_at).getTime() < Date.now()) {
     await admin.from("github_oauth_states").delete().eq("id", stateRow.id);
@@ -87,34 +74,15 @@ Deno.serve(async (req) => {
 
   try {
     const githubToken = await exchangeCode(code);
-    const me = await github("/user", githubToken) as {
-      login: string;
-      name?: string | null;
-      avatar_url?: string;
-      html_url?: string;
-    };
-
-    // A GitHub App user token can identify the user and list the installations
-    // that this user can access. This lets us distinguish authorization from
-    // installation instead of blindly trusting the installation settings page.
-    const installationsBody = await github("/user/installations?per_page=100", githubToken) as {
-      installations?: Array<{
-        id: number;
-        app_id?: number;
-        account?: { login?: string; type?: string };
-        repository_selection?: string;
-        permissions?: Record<string, string>;
-      }>;
-    };
+    const me = await github("/user", githubToken) as { login: string; name?: string | null; avatar_url?: string; html_url?: string };
+    const installationsBody = await github("/user/installations?per_page=100", githubToken) as { installations?: Array<{ id: number; app_id?: number; account?: { login?: string; type?: string }; repository_selection?: string; permissions?: Record<string, string> }> };
     const installation = (installationsBody.installations ?? []).find((item) => String(item.app_id ?? "") === APP_ID);
 
     if (!installation) {
-      // Keep the state alive. Once the user installs the App, GitHub will run
-      // the authorization callback again and the same state will be consumed.
       const installUrl = new URL(INSTALL_URL);
       installUrl.searchParams.set("state", state);
       installUrl.searchParams.set("redirect_uri", CALLBACK_URL);
-      return redirect("needs-install", `Install APIVue Developer Explorer on @${me.login}: ${installUrl.toString()}`);
+      return redirect("needs-install", `GitHub is authorized. Install APIVue Developer Explorer on @${me.login} to enable repository access.`, installUrl.toString());
     }
 
     const repos: unknown[] = [];
@@ -146,24 +114,9 @@ Deno.serve(async (req) => {
       connectedAt: new Date().toISOString(),
     };
 
-    const { data: saved, error: upsertError } = await admin.from("tracked_profiles").upsert({
-      user_id: stateRow.user_id,
-      platform: "github",
-      handle: me.login,
-      display_name: profile.displayName,
-      avatar_url: profile.avatarUrl,
-      profile_url: profile.profileUrl,
-      data: profile,
-      sync_error: null,
-      last_synced_at: new Date().toISOString(),
-    }, { onConflict: "user_id,platform,handle" }).select("id").single();
+    const { data: saved, error: upsertError } = await admin.from("tracked_profiles").upsert({ user_id: stateRow.user_id, platform: "github", handle: me.login, display_name: profile.displayName, avatar_url: profile.avatarUrl, profile_url: profile.profileUrl, data: profile, sync_error: null, last_synced_at: new Date().toISOString() }, { onConflict: "user_id,platform,handle" }).select("id").single();
     if (upsertError || !saved) throw new Error(upsertError?.message ?? "Could not save the GitHub connection.");
-
-    const { error: snapshotError } = await admin.from("profile_snapshots").insert({
-      profile_id: saved.id,
-      user_id: stateRow.user_id,
-      metrics: { repository_total: repos.length, private_repository_total: privateRepos.length },
-    });
+    const { error: snapshotError } = await admin.from("profile_snapshots").insert({ profile_id: saved.id, user_id: stateRow.user_id, metrics: { repository_total: repos.length, private_repository_total: privateRepos.length } });
     if (snapshotError) throw new Error(snapshotError.message);
 
     await admin.from("github_oauth_states").delete().eq("id", stateRow.id);
