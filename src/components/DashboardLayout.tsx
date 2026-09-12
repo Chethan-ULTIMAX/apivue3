@@ -6,7 +6,6 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
 const pageNames: Record<string, string> = {
@@ -24,7 +23,6 @@ const pageNames: Record<string, string> = {
 export function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -34,27 +32,26 @@ export function DashboardLayout() {
     return 'APIVue';
   }, [location.pathname]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
-
   const handleSearch = (value: string) => {
     const q = value.trim().toLowerCase();
     if (!q) return;
     const match = Object.entries(pageNames).find(([path, name]) =>
-      name.toLowerCase().includes(q),
+      path !== '/dashboard' && name.toLowerCase().includes(q),
     );
     if (match) {
       navigate(match[0]);
+      setSearchOpen(false);
+    } else if ('dashboard'.includes(q)) {
+      navigate('/dashboard');
       setSearchOpen(false);
     }
   };
 
   return (
     <div className="flex min-h-screen w-full bg-background">
+      {/* Desktop navigation must not receive the mobile close callback. */}
       <div className="hidden lg:flex">
-        <AppSidebar onNavigate={handleSignOut} />
+        <AppSidebar />
       </div>
 
       {mobileOpen && (
@@ -93,7 +90,7 @@ export function DashboardLayout() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            {searchOpen ? (
+            {searchOpen && (
               <div className="relative hidden sm:block">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -107,7 +104,7 @@ export function DashboardLayout() {
                   onBlur={() => setSearchOpen(false)}
                 />
               </div>
-            ) : null}
+            )}
             <Button
               variant="ghost"
               size="icon"
