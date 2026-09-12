@@ -6,22 +6,14 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      'dist/**',
-      'node_modules/**',
-      'supabase/.temp/**',
-      '**/*.d.ts',
-    ],
+    ignores: ['dist/**', 'node_modules/**', 'supabase/.temp/**', '**/*.d.ts'],
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['src/**/*.{ts,tsx}', 'server/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
+      globals: { ...globals.browser, ...globals.node },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -35,6 +27,7 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
     },
   },
   {
@@ -42,13 +35,12 @@ export default tseslint.config(
     files: ['supabase/functions/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
-      globals: {
-        ...globals.deno,
-      },
+      globals: { ...globals.deno },
     },
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
     },
   },
 );
