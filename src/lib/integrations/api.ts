@@ -104,12 +104,14 @@ export async function getIntegrationStatus(): Promise<IntegrationStatus> {
 }
 
 export async function connectGitHub(handle = ''): Promise<void> {
-  if (!handle.trim() && API_BASE) {
+  const clean = handle.trim().replace(/^@/, '');
+  if (!clean && API_BASE) {
     const { url } = await backendRequest<{ url: string }>('/api/integrations/github/connect');
     window.location.href = url;
     return;
   }
-  await syncPublicProfile('github', handle);
+  if (!clean) throw new Error('Enter your GitHub username.');
+  await syncPublicProfile('github', clean);
 }
 
 async function disconnectPublicProfile(provider: IntegrationId): Promise<void> {
