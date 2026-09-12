@@ -1,35 +1,22 @@
 /**
- * Supabase client.
+ * Typed Supabase client shared by the browser application.
  *
- * Configured with:
- *   - persistent sessions in localStorage
- *   - automatic token refresh
- *   - a custom fetch that handles Supabase's newer opaque API keys
- *     (the `sb_publishable_*` / `sb_secret_*` format), which are not
- *     bearer JWTs and must not be sent as an Authorization header.
- *
- * The project must be configured with these environment variables:
- *   VITE_SUPABASE_URL
- *   VITE_SUPABASE_PUBLISHABLE_KEY
+ * Only the publishable key is ever loaded here. Server-only credentials
+ * stay in the backend/Edge Function environment.
  */
 
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   throw new Error(
-    'Missing Supabase configuration. ' +
-      'Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your .env file.',
+    'Missing Supabase configuration. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.',
   );
 }
 
-/**
- * Supabase's newer API keys are opaque strings, not JWTs.
- * If the SDK ever sends one as a bearer token, strip it — otherwise
- * every request would fail with a malformed JWT error.
- */
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -58,18 +45,18 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-/**
- * The shared Supabase client.
- *
- * Import like this:
- *   import { supabase } from '@/integrations/supabase/client';
- */
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  global: {
-    fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+export const supabase = createClient<Database>(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
+  {
+    global: {
+      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+    },
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
   },
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+);
