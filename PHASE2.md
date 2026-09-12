@@ -26,10 +26,11 @@ Phase 2 focuses on making the existing product genuinely usable rather than crea
 - Progress refresh actions refetch stored data.
 - Goals support create, complete and delete actions.
 - AI filters change the displayed insight set.
+- Analytics range controls change the displayed trend window.
 
 ## UI pass
 
-The dashboard shell now uses a sticky translucent header, breadcrumb context, responsive mobile navigation, active navigation indicators, subtle hover motion, a page-jump control and consistent visual spacing. Existing feature pages retain their data-driven cards, charts, empty states and responsive layouts.
+The dashboard shell uses a sticky translucent header, breadcrumb context, responsive mobile navigation, active navigation indicators, subtle hover motion, a page-jump control and consistent visual spacing. Dashboard quick-action cards were added to make the product areas immediately discoverable. Existing feature pages retain data-driven cards, charts, empty states and responsive layouts.
 
 ## Important deployment note
 
