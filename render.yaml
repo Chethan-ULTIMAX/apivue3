@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: apivue-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm run server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_URL
+        value: https://chethan-ultimax.github.io/APIVue
+      - key: GITHUB_CALLBACK_URL
+        value: https://apivue-api.onrender.com/api/integrations/github/callback
+      - key: PORT
+        value: 10000
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+
+# Production architecture:
+# - GitHub Pages serves the static React/Vite SPA.
+# - Render runs the Node/Express integration API.
+# - Supabase provides Auth, Postgres/RLS, and Edge Functions.
+#
+# Set VITE_API_URL=https://apivue-api.onrender.com in the frontend
+# deployment environment after the Render service is provisioned.
