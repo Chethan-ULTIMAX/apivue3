@@ -1,11 +1,9 @@
 /**
  * APIVue authentication context.
  *
- * Wraps Supabase Auth and exposes a small, stable surface:
- *   user, loading, signIn, signUp, signOut, resetPassword, signInWithGoogle
- *
- * The public API of this module must remain stable — many components
- * consume `useAuth()` and rely on these exact signatures.
+ * Supabase owns the session. This provider deliberately waits for the
+ * initial session lookup before protected routes can redirect, preventing
+ * the common "logged in -> immediately sent to login" race.
  */
 
 import {
@@ -15,12 +13,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-
-/* ============================================================
- * Types
- * ============================================================ */
+import { supabase } from '@/integrations/supabase/client';
 
 export interface AuthUser {
   id: string;
@@ -31,38 +25,22 @@ export interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
+  error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  /**
-   * Starts the Google OAuth flow.
-   *
-   * Returns:
-   *   - `false` when the browser is being redirected to Google
-   *     (the page will unload, so any returned value is moot).
-   *   - `true` if the session was already established (rare).
-   */
   signInWithGoogle: (redirectPath?: string) => Promise<boolean>;
+  refreshSession: () => Promise<void>;
 }
-
-/* ============================================================
- * Context
- * ============================================================ */
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
   return ctx;
 }
-
-/* ============================================================
- * Helpers
- * ============================================================ */
 
 function mapUser(u: SupabaseUser): AuthUser {
   return {
@@ -75,38 +53,62 @@ function mapUser(u: SupabaseUser): AuthUser {
   };
 }
 
-/**
- * Ensures a redirect path is a relative path (not a protocol-relative URL).
- * Prevents open-redirect issues when the path comes from user input
- * (e.g. a `?next=` query parameter).
- */
-function safeRedirectPath(
+export function safeRedirectPath(
   path: string | undefined,
   fallback = '/dashboard',
 ): string {
   return path && /^\/(?!\/)/.test(path) ? path : fallback;
 }
 
-/* ============================================================
- * Provider
- * ============================================================ */
+/** Build an absolute URL that includes Vite's deployment base path. */
+export function appUrl(path: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const normalizedPath = path.replace(/^\/+/, '');
+  return new URL(`${normalizedBase}${normalizedPath}`, window.location.origin).toString();
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshSession = async () => {
+    setError(null);
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      setUser(session?.user ? mapUser(session.user) : null);
+    } catch (err) {
+      setUser(null);
+      setError(err instanceof Error ? err.message : 'Unable to read your session.');
+      throw err;
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
 
-    const syncSession = async () => {
+    const initialize = async () => {
       try {
         const {
           data: { session },
+          error: sessionError,
         } = await supabase.auth.getSession();
         if (!mounted) return;
+        if (sessionError) throw sessionError;
         setUser(session?.user ? mapUser(session.user) : null);
+        setError(null);
+      } catch (err) {
+        if (!mounted) return;
+        setUser(null);
+        setError(
+          err instanceof Error ? err.message : 'Unable to restore your session.',
+        );
       } finally {
-        // Always clear the loading flag, even if the session read failed.
         if (mounted) setLoading(false);
       }
     };
@@ -116,9 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       setUser(session?.user ? mapUser(session.user) : null);
+      setError(null);
+      setLoading(false);
     });
 
-    void syncSession();
+    void initialize();
 
     return () => {
       mounted = false;
@@ -127,54 +131,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) throw error;
+    if (signInError) throw signInError;
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: name },
-        // After email confirmation, send the user to the login page.
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: appUrl('/login'),
       },
     });
-    if (error) throw error;
+    if (signUpError) throw signUpError;
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) throw signOutError;
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // The recovery email lands on the dedicated reset-password page,
-      // which detects the PASSWORD_RECOVERY session.
-      redirectTo: `${window.location.origin}/reset-password`,
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: appUrl('/reset-password'),
     });
-    if (error) throw error;
+    if (resetError) throw resetError;
   };
 
   const signInWithGoogle = async (redirectPath?: string): Promise<boolean> => {
     const target = safeRedirectPath(redirectPath);
-
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}${target}`,
+        redirectTo: appUrl(target),
       },
     });
-
-    if (error) throw error;
-
-    // Supabase redirects the browser by default; if we're still running,
-    // no session was established on this pass.
+    if (oauthError) throw oauthError;
     return false;
   };
 
@@ -183,11 +179,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         loading,
+        error,
         signIn,
         signUp,
         signOut,
         resetPassword,
         signInWithGoogle,
+        refreshSession,
       }}
     >
       {children}
