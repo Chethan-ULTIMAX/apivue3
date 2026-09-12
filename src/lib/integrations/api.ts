@@ -1,14 +1,12 @@
 /**
  * Browser client for the optional Express integration API.
  *
- * The API is deliberately configured separately from the static frontend:
- * GitHub Pages can host the SPA, while the Express service can run on a
- * server platform that supports Node. Production builds must provide
- * VITE_API_URL; localhost is used only during local development.
+ * GitHub Pages hosts the static frontend; the Express service hosts
+ * authenticated connections and provider synchronization.
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import type { IntegrationStatus } from './types';
+import type { IntegrationId, IntegrationStatus } from './types';
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const API_BASE = (configuredApiUrl || (import.meta.env.DEV ? 'http://localhost:8787' : ''))
@@ -75,6 +73,20 @@ export async function disconnectGitHub(): Promise<void> {
 export function syncGitHub(): Promise<{ syncedAt: string; username: string }> {
   return request<{ syncedAt: string; username: string }>(
     '/api/integrations/github/sync',
+    { method: 'POST' },
+  );
+}
+
+/**
+ * Sync any connected public-data provider through the same normalized
+ * server pipeline. GitHub intentionally remains on its OAuth-specific
+ * route because its access token is server-only.
+ */
+export function syncIntegration(
+  provider: Exclude<IntegrationId, 'github'>,
+): Promise<{ syncedAt: string; handle: string; provider: string }> {
+  return request<{ syncedAt: string; handle: string; provider: string }>(
+    `/api/integrations/${provider}/sync`,
     { method: 'POST' },
   );
 }
